@@ -17,6 +17,12 @@
             crossorigin="anonymous"
         />
         <link rel="stylesheet" href="mainMenu.css" />
+        <link
+            rel="icon"
+            href="/logo.png"
+            type="image/png"
+            sizes="16x16"
+        />
     </head>
 
     <body>
@@ -46,8 +52,8 @@
                         <button class="btn btn-primary" onclick="randomizeLobbyID()">Randomize</button>
                     </div>
                     <div class="col-md-6 text-center">
-                        <button class="btn btn-primary">Create Lobby</button>
-                        <button class="btn btn-primary">Join Lobby</button>
+                        <button class="btn btn-primary" onclick="createLobby()">Create Lobby</button>
+                        <button class="btn btn-primary" onclick="joinLobby()">Join Lobby</button>
                     </div>
                 </div>    
             </div>  
@@ -69,6 +75,6 @@
             integrity="sha384-BBtl+eGJRgqQAUMxJ7pMwbEyER4l1g+O15P+16Ep7Q9Q+zqX6gSbd85u4mG4QzX+"
             crossorigin="anonymous"
         ></script>
-        <script src="mainMenu.js"></script>
+        <script src="/mainMenu.js"></script>
     </body>
 </html>
