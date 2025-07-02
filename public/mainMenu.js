@@ -1,5 +1,4 @@
 function randomizeUsername(){
-    //console.log("Randomizing username");
     let result = '';
     for (let i = 0; i < 6; i++) {
         result += String.fromCharCode(Math.floor(Math.random() * 26) + 65);
