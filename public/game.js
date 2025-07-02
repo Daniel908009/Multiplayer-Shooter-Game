@@ -6,7 +6,9 @@ document.addEventListener('DOMContentLoaded', () => {
   lobbyModal.show();
 });
 
+// Global variables
 const socket = new WebSocket(`ws://${location.host}`);
+let mapData = null; // this will hold the map data when it is received from the server, modifying it here will not help the client in any way since all the logic is on the server side
 
 socket.addEventListener('open', () => {
     console.log('Connected to the server');
@@ -28,6 +30,10 @@ socket.addEventListener('message', (event) => {
         // closing the modal
         lobbyModal.hide();
         console.log('Game started');
+        if(data.isMain){
+            socket.send(JSON.stringify({ action: 'requestMap' })); // requesting a random map from the server, later it will have some options and conditions
+        }
+        startControls()
     }else if (data.action === 'lobbyInfo'){ // this is received every time a new player joins the lobby
         const playersList = document.getElementById("playerList");
         const thisPlayer = data.thisPlayer
@@ -39,23 +45,20 @@ socket.addEventListener('message', (event) => {
             div.appendChild(playerItem);
             const switchButton = document.createElement('div');
             switchButton.className = 'form-check form-switch';
-            //console.log("thisPlayer: ", thisPlayer)
-            //console.log("player: ", player)
             if(player.id === thisPlayer.id && !thisPlayer.isMain){
-                //console.log("first option")
                 switchButton.innerHTML = `
                     <input class="form-check-input" type="checkbox" id="readySwitch-${player.id}" onchange="requestChangeReadyState(${player.id})" ${thisPlayer.ready ? 'checked' : ''}>`;
             }else{
-                //console.log("second option"+ player.ready)
                 switchButton.innerHTML = `
                     <input class="form-check-input" type="checkbox" id="readySwitch-${player.id}" disabled ${player.ready ? 'checked' : ''}> `;
             }
             switchButton.innerHTML += `<label class="form-check-label" for="readySwitch-${player.id}">Ready</label>`;
-            //console.log("seted up player switch for " + player.id);
-            //console.log(switchButton)
             div.appendChild(switchButton);
             playersList.appendChild(div);
         });
+    }else if (data.action === "mapData"){
+        mapData = data.mapData;
+        console.log('Map data received:', mapData);
     }
 });
 
@@ -66,8 +69,57 @@ function requestGameStart(){ // function to request the game start
 
 function requestChangeReadyState(playerId){ // function to change the ready state of the player
     const isReady = document.getElementById(`readySwitch-${playerId}`).checked;
-    console.log(isReady)
     socket.send(JSON.stringify({ action: 'readyUPchange', isReady: isReady }));
+}
+
+function startControls(){ // starts the controls to request movement from the server
+    document.addEventListener('keydown', (event) => {
+        // all the movement keys
+        if (event.key === 'ArrowUp') {
+            socket.send(JSON.stringify({ action: 'move', direction: 'up' }));
+        } else if (event.key === 'ArrowDown') {
+            socket.send(JSON.stringify({ action: 'move', direction: 'down' }));
+        } else if (event.key === 'ArrowLeft') {
+            socket.send(JSON.stringify({ action: 'move', direction: 'left' }));
+        } else if (event.key === 'ArrowRight') {
+            socket.send(JSON.stringify({ action: 'move', direction: 'right' }));
+        }
+    });
+    // sending the position of the mouse for aiming
+    document.addEventListener('mousemove', (event) => {
+        socket.send(JSON.stringify({ action: 'mouseMove', x: event.clientX, y: event.clientY }));
+    });
+    // click is fire
+    document.addEventListener('click', (event) => {
+        socket.send(JSON.stringify({ action: 'click', x: event.clientX, y: event.clientY }));
+    });
+}
+
+function drawMap(){ // function for drawing the map that is currently loaded
+    //console.log(mapData);
+    // used for scaling
+    let baseSize = windowWidth > windowHeight ? windowHeight : windowWidth;
+    let tileSize = baseSize / 20;
+    // drawing the map
+    if (mapData) {
+        // drawing each of the tiles
+        for (let tileType in mapData.tiles) {
+            mapData.tiles[tileType].forEach(tile => {
+                //console.log("here", tileType, tile);
+                fill(0, 0, 0); // default color for tiles
+                rect(tile.x, 0, tileSize, tileSize);
+                console.log(tile.x, tile.y, tileSize, tileSize);
+            });
+        }
+    }
+}
+
+function drawPlayers(){ // draws the players on their x and y positions that are stored on the server
+    
+}
+
+function drawUI(){ // draws the score board and other elements
+
 }
 
 function setup(){ // this function is automatically called once by p5.js
@@ -76,5 +128,8 @@ function setup(){ // this function is automatically called once by p5.js
 }
 
 function draw(){ // this function is automatically called by p5.js, it is used for drawing on the canvas
-    background(255, 0, 0);
+    background(255, 255, 255);
+    drawMap();
+    drawPlayers();
+    drawUI();
 }

@@ -63,7 +63,7 @@ wss.on('connection', (ws) => {
                 ready = true
             }
             lobbies[lobbyId].joiningID += 1; // incrementing the unique ID for the next player
-            lobbies[lobbyId].players.push({"name": playerName, "id": uniqueID, "isMain": isMain, "ws": ws, "position": {x: 0, y: 0}, "ready": ready, "numberOfWins": 0});
+            lobbies[lobbyId].players.push({"name": playerName, "id": uniqueID, "isMain": isMain, "ws": ws, "position": {x: 0, y: 0, angle: 0}, "ready": ready, "numberOfWins": 0});
             ws.send(JSON.stringify({
                 action: 'joined',
                 isMain: isMain,
@@ -104,7 +104,7 @@ wss.on('connection', (ws) => {
                     lobbies[lobbyId].hasStarted = true;
                     // sending the game started message to all players in the lobby
                     lobbies[lobbyId].players.forEach(player => {
-                        player.ws.send(JSON.stringify({ action: 'gameStarted' }));
+                        player.ws.send(JSON.stringify({ action: 'gameStarted', isMain: player.isMain })); // isMain has to be sent because of map requesting that is done later
                     });
                     console.log(`Game started in lobby ${lobbyId}`);
                 }else{
@@ -138,6 +138,46 @@ wss.on('connection', (ws) => {
                     }))
                 }));
             });
+        }else if(data.action === 'requestMap'){
+            const lobbyId = ws.lobbyId;
+            // this is a test map, later it will be done with json files
+            // all of the positional values will be multiplied by the scale factor of the clients browser
+            map = {
+                tiles: {
+                    walls: [
+                        { x: 100, y: 100, width: 200, height: 20 },
+                        { x: 400, y: 200, width: 20, height: 200 }
+                    ],
+                    spikes: [
+                        { x: 300, y: 300, width: 50, height: 50 },
+                        { x: 500, y: 400, width: 50, height: 50 }
+                    ]
+                },
+                spawnPoints: [
+                    { x: 2, y: 2 },
+                    { x: 19, y: 2 },
+                    { x: 2, y: 19 },
+                    { x: 19, y: 19 }
+                ]
+            };
+            // sending the map to all players in the lobby
+            lobbies[lobbyId].players.forEach(player => {
+                player.ws.send(JSON.stringify({
+                    action: 'mapData',
+                    mapData: map,
+                }));
+            });
+            // setting the locations of the players to the spawn points
+            lobbies[lobbyId].players.forEach((player, index) => {
+                player.position.x = map.spawnPoints[index % map.spawnPoints.length].x;
+                player.position.y = map.spawnPoints[index % map.spawnPoints.length].y;
+            });
+        }else if (data.action === 'move'){
+            // movement here
+        }else if (data.action === 'mouseMove'){
+            // aiming here
+        }else if (data.action === 'click'){
+            // shooting here
         }
     });
 
