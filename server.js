@@ -2,7 +2,6 @@ const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
 const path = require('path');
-const { read } = require('fs');
 
 const app = express();
 const server = http.createServer(app);
@@ -21,9 +20,11 @@ app.post('/create-lobby', (req, res) => {
     lobbies[lobbyId] = {
         players: [],
         joiningID: 0, // this will be used to assign unique IDs to players
-        hasStarted: false // if the game has started then no more players can join
+        hasStarted: false, // if the game has started then no more players can join
+        isOpen: true, // if the lobby is open for joining
+        bullets: [] // this will hold all the bullet objects
     };
-    console.log(lobbies);
+    //console.log(lobbies);
     res.status(200).send('Lobby created successfully');
     console.log(`Lobby created with ID: ${lobbyId}`);
 });
@@ -35,6 +36,8 @@ app.post('/join-lobby', (req, res) => {
     }
     if (lobbies[lobbyId].hasStarted) {
         return res.status(400).json("Game has already started, cannot join");
+    }else if (!lobbies[lobbyId].isOpen) {
+        return res.status(400).json("Lobby is full or not open for joining");
     }
     console.log(`Player ${playerName} joined lobby ${lobbyId}`);
     res.status(200).send("joined successfully");
@@ -45,6 +48,10 @@ app.get('/', (req, res) => {
 });
 
 app.get('/game/:lobbyId', (req, res) => {
+    const lobbyId = req.params.lobbyId;
+    if (!lobbies[lobbyId]) {
+        return res.status(404).send("Lobby not found");
+    }
     res.sendFile(path.join(__dirname, 'public', 'game.html'));
 });
 
@@ -62,12 +69,20 @@ wss.on('connection', (ws) => {
                 isMain = true;
                 ready = true
             }
+            // giving the player a random color from the color list
+            const colors = [{r: 255, g: 0, b: 0}, {r: 0, g: 255, b: 0}, {r: 0, g: 0, b: 255}, {r: 255, g: 255, b: 0}, {r: 255, g: 165, b: 0}];
+            let color;
+            do{
+                color = colors[Math.floor(Math.random() * colors.length)];
+            }while (lobbies[lobbyId].players.some(player => player.color === color)); // ensuring that the color is unique in the lobby
             lobbies[lobbyId].joiningID += 1; // incrementing the unique ID for the next player
-            lobbies[lobbyId].players.push({"name": playerName, "id": uniqueID, "isMain": isMain, "ws": ws, "position": {x: 0, y: 0, angle: 0}, "ready": ready, "numberOfWins": 0});
+            // adding the player to the lobby and giving him info
+            lobbies[lobbyId].players.push({"name": playerName, "id": uniqueID, "isMain": isMain, "ws": ws, "position": {x: 0, y: 0, angle: 0}, "mousePos":{x:0, y:0}, "ready": ready,"color":color, "numberOfWins": 0});
             ws.send(JSON.stringify({
                 action: 'joined',
                 isMain: isMain,
-                uniqueID: uniqueID
+                uniqueID: uniqueID,
+                color: color
             }));
             lobbies[lobbyId].players.forEach(player => {
                 player.ws.send(JSON.stringify({
@@ -86,6 +101,10 @@ wss.on('connection', (ws) => {
                     }))
                 }));
             })
+            // if the lobby is full then marking it as not open for joining
+            if (lobbies[lobbyId].players.length >= 4) {
+                lobbies[lobbyId].isOpen = false;
+            }
         }else if (data.action === "startGame"){ // called when someone requests to start the game
             // checking if the player that requested the game start is the main player
             const lobbyId = ws.lobbyId;
@@ -138,44 +157,125 @@ wss.on('connection', (ws) => {
                     }))
                 }));
             });
-        }else if(data.action === 'requestMap'){
+        }else if(data.action === 'requestMap'){ // sends the map 30 times a second to all the players, later it will be optimalized
             const lobbyId = ws.lobbyId;
             // this is a test map, later it will be done with json files
             // all of the positional values will be multiplied by the scale factor of the clients browser
             map = {
                 tiles: {
                     walls: [
-                        { x: 100, y: 100, width: 200, height: 20 },
-                        { x: 400, y: 200, width: 20, height: 200 }
+                        // top walls
+                        { x: 0, y: 0},
+                        { x: 1, y: 0},
+                        { x: 2, y: 0},
+                        { x: 3, y: 0},
+                        { x: 4, y: 0},
+                        { x: 5, y: 0},
+                        { x: 6, y: 0},
+                        { x: 7, y: 0},
+                        { x: 8, y: 0},
+                        { x: 9, y: 0},
+                        { x: 10, y: 0},
+                        { x: 11, y: 0},
+                        { x: 12, y: 0},
+                        { x: 13, y: 0},
+                        { x: 14, y: 0},
+                        { x: 15, y: 0},
+                        { x: 16, y: 0},
+                        { x: 17, y: 0},
+                        { x: 18, y: 0},
+                        { x: 19, y: 0},
+                        // bottom walls
+                        { x: 0, y: 19},
+                        { x: 1, y: 19},
+                        { x: 2, y: 19},
+                        { x: 3, y: 19},
+                        { x: 4, y: 19},
+                        { x: 5, y: 19},
+                        { x: 6, y: 19},
+                        { x: 7, y: 19},
+                        { x: 8, y: 19},
+                        { x: 9, y: 19},
+                        { x: 10, y: 19},
+                        { x: 11, y: 19},
+                        { x: 12, y: 19},
+                        { x: 13, y: 19},
+                        { x: 14, y: 19},
+                        { x: 15, y: 19},
+                        { x: 16, y: 19},
+                        { x: 17, y: 19},
+                        { x: 18, y: 19},
+                        { x: 19, y: 19}
                     ],
                     spikes: [
-                        { x: 300, y: 300, width: 50, height: 50 },
-                        { x: 500, y: 400, width: 50, height: 50 }
+                        { x: 0, y: 18 },
+                        { x: 19, y: 18 }
                     ]
                 },
                 spawnPoints: [
                     { x: 2, y: 2 },
-                    { x: 19, y: 2 },
-                    { x: 2, y: 19 },
-                    { x: 19, y: 19 }
+                    { x: 9, y: 2 },
+                    { x: 2, y: 10 },
+                    { x: 10, y: 10 }
                 ]
             };
-            // sending the map to all players in the lobby
-            lobbies[lobbyId].players.forEach(player => {
-                player.ws.send(JSON.stringify({
-                    action: 'mapData',
-                    mapData: map,
-                }));
-            });
             // setting the locations of the players to the spawn points
             lobbies[lobbyId].players.forEach((player, index) => {
-                player.position.x = map.spawnPoints[index % map.spawnPoints.length].x;
-                player.position.y = map.spawnPoints[index % map.spawnPoints.length].y;
+                player.position.x = map.spawnPoints[index % map.spawnPoints.length].x
+                player.position.y = map.spawnPoints[index % map.spawnPoints.length].y
             });
-        }else if (data.action === 'move'){
-            // movement here
+            // sending the map 30 times a second to all players in the lobby
+            lobbies[lobbyId].mapInterval = setInterval(() => {
+                // sending all the important info
+                lobbies[lobbyId].players.forEach(player => {
+                    player.ws.send(JSON.stringify({
+                        action: 'mapData',
+                        mapData: map,
+                        players: lobbies[lobbyId].players.map(p => ({
+                            id: p.id,
+                            name: p.name,
+                            position: p.position,
+                            isMain: p.isMain,
+                            color: p.color,
+                        }))
+                    }));
+                });
+            }, 1000 / 30);
+        }else if (data.action === 'move'){ // is called when a player requests to move
+            const lobbyId = ws.lobbyId;
+            const player = lobbies[lobbyId].players.find(player => player.ws === ws);
+            // moving the player based on the keys pressed
+            if (data.keys.includes('w')) {
+                player.position.y -= 0.05; // moving up
+            }
+            if (data.keys.includes('s')) {
+                player.position.y += 0.05; // moving down
+            }
+            if (data.keys.includes('a')) {
+                player.position.x -= 0.05; // moving left
+            }
+            if (data.keys.includes('d')) {
+                player.position.x += 0.05; // moving right
+            }
+            player.position.x = Math.round(player.position.x*100)/100
+            player.position.y = Math.round(player.position.y*100)/100
+            // calculating the angle based on the new position
+            const tileSize = data.tileSize;
+            let x = player.position.x * tileSize + tileSize / 2
+            let y = player.position.y * tileSize + tileSize / 2
+            player.position.angle = Math.atan2(player.mousePos.y - y, player.mousePos.x - x);
+            //console.log(`New position of player ${player.name}: (${player.position.x}, ${player.position.y})`);
         }else if (data.action === 'mouseMove'){
-            // aiming here
+            // getting the players position and calculating the angle to the mouse position
+            const lobbyId = ws.lobbyId;
+            const player = lobbies[lobbyId].players.find(player => player.ws === ws);
+            player.mousePos.x = data.x;
+            player.mousePos.y = data.y;
+            const tileSize = data.tileSize;
+            let x = player.position.x * tileSize + tileSize / 2
+            let y = player.position.y * tileSize + tileSize / 2
+            player.position.angle = Math.atan2(player.mousePos.y - y, player.mousePos.x - x);
+            //console.log(`Player ${player.name} is aiming at angle: ${player.position.angle}`);
         }else if (data.action === 'click'){
             // shooting here
         }
@@ -237,6 +337,10 @@ wss.on('connection', (ws) => {
                 }));
             });
         }else{ // if the last player left the lobby
+            // stopping the interval that sends the map data
+            if (lobbies[lobbyId].mapInterval) {
+                clearInterval(lobbies[lobbyId].mapInterval);
+            }
             // deleting the lobby if there are no players left
             delete lobbies[lobbyId];
             console.log(`Lobby ${lobbyId} deleted due to no players`);

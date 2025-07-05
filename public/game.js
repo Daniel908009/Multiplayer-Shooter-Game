@@ -15,7 +15,7 @@ socket.addEventListener('open', () => {
     // sending the join action to the server
     const lobbyId = window.location.pathname.split('/').pop();
     const playerName = new URLSearchParams(window.location.search).get('username') || 'Anonymous';
-    socket.send(JSON.stringify({ action: 'join', lobbyId, playerName }));
+    socket.send(JSON.stringify({ action: 'join', lobbyId, playerName}));
 });
 
 socket.addEventListener('message', (event) => {
@@ -58,7 +58,8 @@ socket.addEventListener('message', (event) => {
         });
     }else if (data.action === "mapData"){
         mapData = data.mapData;
-        console.log('Map data received:', mapData);
+        mapData.players = data.players; // adding the players to the map data so that they can be drawn on the map
+        //console.log('Map data received:', mapData);
     }
 });
 
@@ -72,27 +73,37 @@ function requestChangeReadyState(playerId){ // function to change the ready stat
     socket.send(JSON.stringify({ action: 'readyUPchange', isReady: isReady }));
 }
 
+let keysPressed = {}; // object to hold the keys that are currently pressed
+
 function startControls(){ // starts the controls to request movement from the server
     document.addEventListener('keydown', (event) => {
-        // all the movement keys
-        if (event.key === 'ArrowUp') {
-            socket.send(JSON.stringify({ action: 'move', direction: 'up' }));
-        } else if (event.key === 'ArrowDown') {
-            socket.send(JSON.stringify({ action: 'move', direction: 'down' }));
-        } else if (event.key === 'ArrowLeft') {
-            socket.send(JSON.stringify({ action: 'move', direction: 'left' }));
-        } else if (event.key === 'ArrowRight') {
-            socket.send(JSON.stringify({ action: 'move', direction: 'right' }));
-        }
+        keysPressed[event.key] = true;
+    });
+    document.addEventListener('keyup', (event) => {
+        keysPressed[event.key] = false;
     });
     // sending the position of the mouse for aiming
     document.addEventListener('mousemove', (event) => {
-        socket.send(JSON.stringify({ action: 'mouseMove', x: event.clientX, y: event.clientY }));
+        socket.send(JSON.stringify({ action: 'mouseMove', x: event.clientX, y: event.clientY, tileSize: windowWidth > windowHeight ? windowHeight / 20 : windowWidth / 20 }));
     });
     // click is fire
     document.addEventListener('click', (event) => {
         socket.send(JSON.stringify({ action: 'click', x: event.clientX, y: event.clientY }));
     });
+    // sending the movements to the server
+    setInterval(() => {
+        if (Object.keys(keysPressed).length > 0) { // if any key is pressed
+            let keys = [];
+            for (let key in keysPressed) {
+                if (keysPressed[key]) { // if the key is pressed
+                    keys.push(key); // add the key to the array
+                }
+            }
+            if (keys) {
+                socket.send(JSON.stringify({ action: 'move', keys: keys , tileSize: windowWidth > windowHeight ? windowHeight / 20 : windowWidth / 20 }));
+            }
+        }
+    }, 1000 / 100);
 }
 
 function drawMap(){ // function for drawing the map that is currently loaded
@@ -106,16 +117,37 @@ function drawMap(){ // function for drawing the map that is currently loaded
         for (let tileType in mapData.tiles) {
             mapData.tiles[tileType].forEach(tile => {
                 //console.log("here", tileType, tile);
-                fill(0, 0, 0); // default color for tiles
-                rect(tile.x, 0, tileSize, tileSize);
-                console.log(tile.x, tile.y, tileSize, tileSize);
+                if(tileType === 'walls'){
+                    fill(100, 100, 100);
+                }else if(tileType === 'spikes'){
+                    fill(255, 0, 0);
+                }
+                rect(tile.x*tileSize, tile.y*tileSize, tileSize, tileSize);
             });
         }
     }
 }
 
 function drawPlayers(){ // draws the players on their x and y positions that are stored on the server
-    
+    if (mapData){
+        mapData.players.forEach(player =>{
+            // drawing the actual players
+            //console.log(player.color)
+            fill(player.color.r, player.color.g, player.color.b);
+            let tileSize = windowWidth > windowHeight ? windowHeight / 20 : windowWidth / 20;
+            let xPosition = player.position.x * tileSize + tileSize / 2;
+            let yPosition = player.position.y * tileSize + tileSize / 2;
+            ellipse(xPosition, yPosition, tileSize*0.8, tileSize*0.8);
+            //console.log(`Drawing player ${player.name} at (${xPosition}, ${yPosition})`);
+            // drawing the angle of the player as a line
+            stroke(0);
+            let angle = player.position.angle;
+            let lineLength = tileSize / 1.5;
+            let endX = xPosition + lineLength * Math.cos(angle);
+            let endY = yPosition + lineLength * Math.sin(angle);
+            line(xPosition, yPosition, endX, endY);
+        })
+    }
 }
 
 function drawUI(){ // draws the score board and other elements
