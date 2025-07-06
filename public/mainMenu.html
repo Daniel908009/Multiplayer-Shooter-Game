@@ -19,44 +19,126 @@
         <link rel="stylesheet" href="/mainMenu.css" />
         <link
             rel="icon"
-            href="/logo.png"
+            href="logo.png"
             type="image/png"
-            sizes="16x16"
         />
     </head>
 
     <body>
+
+        <div class="modal fade" id="createLobby" tabindex="-1" aria-labelledby="createLobbyLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                <div class="modal-header">
+                    <h1 class="modal-title fs-5">Create Lobby Form</h1>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div>
+                        <div class="row-container">
+                            <p class="pt-3">LobbyID: </p>
+                            <textarea id="lobbyID"></textarea>
+                            <button class="btn btn-primary" onclick="randomizeLobbyID()">Randomize Lobby ID</button>
+                        </div>
+                        <hr>
+                        <div class="row-container">
+                            <p class="pt-3">Public: </p>
+                            <input class="form-check-input" type="checkbox" value="" id="public" checked>
+                        </div>
+                        <hr>
+                        <div class="row-container">
+                            <p class="pt-3">Password: </p>
+                            <textarea id="lobbyPassword"></textarea>
+                            <button class="btn btn-primary" onclick="randomizePassword()">Randomize Password</button>
+                        </div>
+                        <hr>
+                        <div class="row-container">
+                            <p class="pt-3">Maximum players: </p>
+                            <select id="maxPlayers">
+                                <option value="1">1</option>
+                                <option value="2">2</option>
+                                <option value="3">3</option>
+                                <option value="4">4</option>
+                                <option value="5">5</option>
+                                <option value="6" selected>6</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-success" onclick="requestCreateLobby()">Create</button>
+                </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal fade" id="privateLobby" tabindex="-1" aria-labelledby="privateLobbyLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                <div class="modal-header">
+                    <h1 class="modal-title fs-5">Join Private Lobby Form</h1>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row-container">
+                        <p class="pt-3">LobbyID: </p>
+                        <textarea id="lobbyID"></textarea>
+                    </div>
+                    <hr>
+                    <div class="row-container">
+                        <p class="pt-3">Password: </p>
+                        <textarea id="lobbyPassword"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-success" onclick="requestPrivateLobbyJoin()">Join</button>
+                </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal fade" id="publicLobbies" tabindex="-1" aria-labelledby="publicLobbiesLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                <div class="modal-header">
+                    <h1 class="modal-title fs-5">Public Lobbies</h1>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="lobbyList">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" onclick="showCreateLobbyModal()">Create a New Lobby</button>
+                </div>
+                </div>
+            </div>
+        </div>
         <header>
             <!-- place navbar here -->
         </header>
         <main>
             <div class="container">
-                <h1 class="text-center my-5 fw-bold">Main Menu</h1>
+                <h1 class="text-center my-5 fw-bold">Multiplayer Shooter Game</h1>
                 <div class="row justify-content-center">
-                    <div class="col-md-4 text-center fw-bold">
-                        <p>Username</p>
+                    <div class="row-container spaceOut2">
+                        <div class="col-md-4 text-center fw-bold col">
+                            <p class="pt-2">Username</p>
+                        </div>
+                        <div class="col-md-4 text-center col">
+                            <textarea name="username" id="username"></textarea>
+                        </div>
+                        <div class="col-md-4 text-center col">
+                            <button class="btn btn-primary fs-5" onclick="randomizeUsername()">Randomize Name</button>
+                        </div>
                     </div>
-                    <div class="col-md-4 text-center">
-                        <textarea name="username" id="username"></textarea>
+                    <div class="col-md-4 text-center mt-4 spaceOut centeredContent">
+                        <button class="btn btn-primary fs-5 limited-width" onclick="showPublicLobbies()">Show Public Lobbies</button>
+                        <button class="btn btn-primary fs-5 limited-width" onclick="joinPrivateLobby()">Join Private Lobby</button>
+                        <button class="btn btn-primary fs-5 limited-width" onclick="openGithubWindow()">Github Repository Of The Game</button>
                     </div>
-                    <div class="col-md-4 text-center">
-                        <button class="btn btn-primary" onclick="randomizeUsername()">Randomize</button>
-                    </div>
-                    <div class="col-md-4 text-center mt-4 fw-bold">
-                        <p>LobbyID</p>
-                    </div>
-                    <div class="col-md-4 text-center">
-                        <textarea name="lobbyID" id="lobbyID"></textarea>
-                    </div>
-                    <div class="col-md-4 text-center">
-                        <button class="btn btn-primary" onclick="randomizeLobbyID()">Randomize</button>
-                    </div>
-                    <div class="col-md-6 text-center mt-4">
-                        <button class="btn btn-primary" onclick="createLobby()">Create Lobby</button>
-                        <button class="btn btn-primary" onclick="joinLobby()">Join Lobby</button>
-                    </div>
-                </div>    
-            </div>  
+                </div>
+            </div>
         </main>
         <footer>
             <div class="text-center my-5 bg-primary text-white fw-bold">

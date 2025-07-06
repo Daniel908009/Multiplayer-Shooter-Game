@@ -4,3 +4,28 @@
     align-items: center;
     height: 100vh;
 }
+.spaceOut {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.spaceOut2 {
+    display: flex;
+    flex-direction: row;
+    gap: 10px;
+}
+.limited-width{
+    max-width: 300px;
+    width: 100%;
+}
+.centeredContent{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+}
+.row-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}

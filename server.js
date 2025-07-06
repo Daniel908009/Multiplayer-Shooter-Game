@@ -13,7 +13,14 @@ app.use(express.static(path.join(__dirname, 'public')));
 const lobbies = {}; // later I will use a database
 
 app.post('/create-lobby', (req, res) => {
-    const {lobbyId} = req.body
+    const {lobbyId, public, password, username, maxPlayers} = req.body;
+    // validating the lobby ID, password and username
+    if (!lobbyId || lobbyId.length < 5) {
+        return res.status(400).json("Lobby ID must be at least 5 characters long");
+    }
+    if (!username || username.length < 3 || username.length > 18) {
+        return res.status(400).json("Invalid username, must be between 3 and 18 characters long");
+    }
     if (!lobbyId || lobbies[lobbyId]) {
         return res.status(400).json("Invalid lobby ID or lobby already exists");
     }
@@ -22,6 +29,9 @@ app.post('/create-lobby', (req, res) => {
         joiningID: 0, // this will be used to assign unique IDs to players
         hasStarted: false, // if the game has started then no more players can join
         isOpen: true, // if the lobby is open for joining
+        isPublic: public, // if the lobby is public or private
+        password: password, // used as an extra security measure for private lobbies
+        maxPlayers: maxPlayers, // maximum number of players that will be allowed to join
         bullets: [] // this will hold all the bullet objects
     };
     //console.log(lobbies);
@@ -29,8 +39,35 @@ app.post('/create-lobby', (req, res) => {
     console.log(`Lobby created with ID: ${lobbyId}`);
 });
 
-app.post('/join-lobby', (req, res) => {
-    const {lobbyId, playerName} = req.body;
+app.get('/get-public-lobbies', (req, res) => { // this is called when the client wants to get all the public lobbies
+    const responseLobbies = Object.keys(lobbies).filter(lobbyId => lobbies[lobbyId].isPublic && lobbies[lobbyId].isOpen).map(lobbyId => ({
+        id: lobbyId,
+        players: lobbies[lobbyId].players.length,
+        isOpen: lobbies[lobbyId].isOpen
+    }));
+    if (responseLobbies.length === 0) {
+        return res.status(200).json({ message: "No public lobbies are currently available" });
+    }
+    res.status(200).json(responseLobbies);
+});
+
+app.get('/random-username', (req, res) => { // this is called when a client requests to get a random username
+    // loading the random names from the file
+    let allNames;
+    try {
+        allNames = require('./sources/names.json');
+    } catch (error) {
+        return res.status(500).json("Error loading names on the servers side. Sorry :(");
+    }
+    // generating a random name from the list
+    //console.log(allNames)
+    const result = `${allNames["firstNames"][Math.floor(Math.random() * allNames["firstNames"].length)]} ${allNames["lastNames"][Math.floor(Math.random() * allNames["lastNames"].length)]}`;
+    res.status(200).json( result );
+})
+
+app.post('/join-lobby', (req, res) => { // this is called when a player wants to join a lobby
+    const {lobbyId, playerName, password} = req.body;
+    // checking if the lobby exists and if it is open for joining
     if(!lobbies[lobbyId]) {
         return res.status(400).json("Lobby not found");
     }
@@ -38,6 +75,16 @@ app.post('/join-lobby', (req, res) => {
         return res.status(400).json("Game has already started, cannot join");
     }else if (!lobbies[lobbyId].isOpen) {
         return res.status(400).json("Lobby is full or not open for joining");
+    }
+    if (lobbies[lobbyId].isPublic === false && password !== lobbies[lobbyId].password){
+        return res.status(400).json("Incorrect password for private lobby");
+    }
+    // validating the player name and lobby ID
+    if (!playerName || playerName.length < 3 || playerName.length > 18) {
+        return res.status(400).json("Invalid player name, must be between 3 and 18 characters long");
+    }
+    if (lobbyId.length < 5) {
+        return res.status(400).json("Lobby ID must be at least 5 characters long");
     }
     console.log(`Player ${playerName} joined lobby ${lobbyId}`);
     res.status(200).send("joined successfully");
@@ -61,6 +108,10 @@ wss.on('connection', (ws) => {
         if (data.action === 'join') { // this is called when a new player joins a lobby, it sets up all the important info for the player
             // telling the player all the important information
             const { lobbyId, playerName } = data;
+            if( !lobbies[lobbyId]) {
+                ws.send(JSON.stringify({ action: 'error', message: 'Lobby not found' }));
+                return;
+            }
             ws.lobbyId = lobbyId; // storing the lobby ID in the WebSocket object, its easier to do some things with it later
             let uniqueID = lobbies[lobbyId].joiningID;
             let isMain = false;
@@ -102,7 +153,7 @@ wss.on('connection', (ws) => {
                 }));
             })
             // if the lobby is full then marking it as not open for joining
-            if (lobbies[lobbyId].players.length >= 4) {
+            if (lobbies[lobbyId].players.length >= lobbies[lobbyId].maxPlayers) {
                 lobbies[lobbyId].isOpen = false;
             }
         }else if (data.action === "startGame"){ // called when someone requests to start the game
@@ -161,64 +212,9 @@ wss.on('connection', (ws) => {
             const lobbyId = ws.lobbyId;
             // this is a test map, later it will be done with json files
             // all of the positional values will be multiplied by the scale factor of the clients browser
-            map = {
-                tiles: {
-                    walls: [
-                        // top walls
-                        { x: 0, y: 0},
-                        { x: 1, y: 0},
-                        { x: 2, y: 0},
-                        { x: 3, y: 0},
-                        { x: 4, y: 0},
-                        { x: 5, y: 0},
-                        { x: 6, y: 0},
-                        { x: 7, y: 0},
-                        { x: 8, y: 0},
-                        { x: 9, y: 0},
-                        { x: 10, y: 0},
-                        { x: 11, y: 0},
-                        { x: 12, y: 0},
-                        { x: 13, y: 0},
-                        { x: 14, y: 0},
-                        { x: 15, y: 0},
-                        { x: 16, y: 0},
-                        { x: 17, y: 0},
-                        { x: 18, y: 0},
-                        { x: 19, y: 0},
-                        // bottom walls
-                        { x: 0, y: 19},
-                        { x: 1, y: 19},
-                        { x: 2, y: 19},
-                        { x: 3, y: 19},
-                        { x: 4, y: 19},
-                        { x: 5, y: 19},
-                        { x: 6, y: 19},
-                        { x: 7, y: 19},
-                        { x: 8, y: 19},
-                        { x: 9, y: 19},
-                        { x: 10, y: 19},
-                        { x: 11, y: 19},
-                        { x: 12, y: 19},
-                        { x: 13, y: 19},
-                        { x: 14, y: 19},
-                        { x: 15, y: 19},
-                        { x: 16, y: 19},
-                        { x: 17, y: 19},
-                        { x: 18, y: 19},
-                        { x: 19, y: 19}
-                    ],
-                    spikes: [
-                        { x: 0, y: 18 },
-                        { x: 19, y: 18 }
-                    ]
-                },
-                spawnPoints: [
-                    { x: 2, y: 2 },
-                    { x: 9, y: 2 },
-                    { x: 2, y: 10 },
-                    { x: 10, y: 10 }
-                ]
-            };
+            
+            // loading the map from the file will be done later
+
             // setting the locations of the players to the spawn points
             lobbies[lobbyId].players.forEach((player, index) => {
                 player.position.x = map.spawnPoints[index % map.spawnPoints.length].x
