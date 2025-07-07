@@ -110,12 +110,22 @@ function requestVisibilityChange(visibility){ // function for requesting the ser
 }
 
 function copyLobbyPassword(){ // function to copy the lobby password to the clipboard, it is called in the lobby modal
-    const lobbyPassword = document.getElementById('lobbyPassword').textContent.split(': ')[1];
+    const lobbyPassword = document.getElementById('lobbyPassword').textContent
     navigator.clipboard.writeText(lobbyPassword).then(() => {
         alert('Lobby password copied to clipboard!');
     }).catch(err => {
         console.error('Failed to copy text: ', err);
         alert('Failed to copy lobby password. Please try again.');
+    });
+}
+
+function copyLobbyID(){ // function to copy the lobby ID to the clipboard, it is called in the lobby modal
+    const lobbyID = document.getElementById('lobbyID').textContent
+    navigator.clipboard.writeText(lobbyID).then(() => {
+        alert('Lobby ID copied to clipboard!');
+    }).catch(err => {
+        console.error('Failed to copy text: ', err);
+        alert('Failed to copy lobby ID. Please try again.');
     });
 }
 

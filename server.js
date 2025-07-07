@@ -167,6 +167,7 @@ wss.on('connection', (ws) => {
                 lobbies[lobbyId].players.forEach(player => {
                     player.ws.send(JSON.stringify({action:"statusChange", isOpen: false}));
                 });
+                console.log(`Lobby ${lobbyId} is now full`);
             }
         }else if (data.action === "startGame"){ // called when someone requests to start the game
             // checking if the player that requested the game start is the main player
@@ -220,22 +221,6 @@ wss.on('connection', (ws) => {
                     }))
                 }));
             });
-        }else if(data.action === 'changeLobbyStatus'){ // called when the main player wants to change the lobby status
-            const lobbyId = ws.lobbyId;
-            const player = lobbies[lobbyId].players.find(player => player.ws === ws);
-            if (!player || !player.isMain) {
-                ws.send(JSON.stringify({ action: 'error', message: 'Only the main player can change the lobby status.' }));
-                return;
-            }
-            const isOpen = data.open;
-            //console.log(`Lobby ${lobbyId} is now ${isOpen}`);
-            // changing the lobby status
-            lobbies[lobbyId].isOpen = isOpen;
-            // sending the updated lobby status to all players in the lobby
-            lobbies[lobbyId].players.forEach(p => {
-                p.ws.send(JSON.stringify({action:"statusChange", isOpen: isOpen}));
-            });
-            //console.log(`Lobby ${lobbyId} is now ${isOpen ? 'open' : 'closed'}`);
         }else if(data.action === 'changeLobbyVisibility'){ // called when the main player wants to change the visibility of the lobby
             const lobbyId = ws.lobbyId;
             const player = lobbies[lobbyId].players.find(player => player.ws === ws);
@@ -248,6 +233,7 @@ wss.on('connection', (ws) => {
             lobbies[lobbyId].players.forEach(p => {
                 p.ws.send(JSON.stringify({action:"visibilityChange", isPublic: visibility}));
             });
+            console.log(`Lobby ${lobbyId} visibility changed to ${visibility ? 'public' : 'private'}`);
         }else if(data.action === 'requestMap'){ // sends the map 30 times a second to all the players, later it will be optimalized
             const lobbyId = ws.lobbyId;
             // this is a test map, later it will be done with json files
@@ -372,6 +358,15 @@ wss.on('connection', (ws) => {
                     }
                 }));
             });
+            // opening the lobby for joining if there are less players than the maximum
+            if (lobbies[lobbyId].players.length < lobbies[lobbyId].maxPlayers) {
+                lobbies[lobbyId].isOpen = true;
+                // sending the updated lobby status to all players in the lobby
+                lobbies[lobbyId].players.forEach(player => {
+                    player.ws.send(JSON.stringify({action:"statusChange", isOpen: true}));
+                });
+                console.log(`Lobby ${lobbyId} is now open for joining`);
+            }
         }else{ // if the last player left the lobby
             // stopping the interval that sends the map data
             if (lobbies[lobbyId] && lobbies[lobbyId].mapInterval) {

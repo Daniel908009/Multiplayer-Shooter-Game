@@ -34,14 +34,15 @@
                 </div>
                 <div class="modal-body">
                     <div class="row">
-                        <div class="col">
+                        <div class="col-12 col-md-6">
                             <div class="player-list">
                                 <p class="fs-5 fw-bold">Players in Lobby:</p>
                                 <ul id="playerList" class="list-group">
                                 </ul>
                             </div>
                         </div>
-                        <div class="col border-start gap">
+                        <hr class="d-block d-md-none my-2">
+                        <div class="col-12 col-md-6 border-start gap d-flex flex-column">
                             <p class="fs-5 fw-bold">Lobby Menu (Host Only):</p>
                             <div class="locked-row-container gap">
                                 <p class="pt-3">Status: </p>
@@ -63,15 +64,16 @@
                                     <label class="btn btn-outline-primary" for="btnradio3">Private</label>
                                 </div>
                             </div>
-                            <div class="locked-row-container gap">
-                                <p class="pt-3">lobbyID: </p>
-                                <textarea name="" id="lobbyID" disabled></textarea>
-                            </div>
                             <button type="button" class="btn btn-success" onclick="requestGameStart()">Start Game (Host Only)</button>
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer">
+                <div class="modal-footer justify-content-between">
+                    <div class="locked-row-container gap">
+                        <p class="pt-3">lobbyID: </p>
+                        <textarea name="" id="lobbyID" disabled></textarea>
+                        <button class="btn btn-secondary" onclick="copyLobbyID()">Copy Lobby ID</button>
+                    </div>
                     <div class="locked-row-container gap">
                         <p class="pt-3">Password: </p>
                         <textarea name="lobbyPassword" id="lobbyPassword" disabled></textarea>
