@@ -22,6 +22,16 @@ socket.addEventListener('message', (event) => {
     const data = JSON.parse(event.data);
     if (data.action === 'joined') { // received when the player joins the lobby
         console.log(`Joined lobby as ${data.isMain ? 'main' : 'secondary'} player with ID: ${data.uniqueID}`);
+        // setting the information in the lobby modal
+        document.getElementById('btnradio').checked = true;
+        document.getElementById('lobbyID').textContent = `${data.lobbyId}`;
+        document.getElementById('lobbyPassword').textContent = `${data.lobbyPassword || 'None'}`;
+        //document.getElementById('maxPlayers').textContent = `Max Players: ${data.maxPlayers}`;
+        if(data.isPublic){
+            document.getElementById('btnradio2').checked = true;
+        } else {
+            document.getElementById('btnradio3').checked = true;
+        }
     } else if (data.action === 'newMain') { // happens when the main player leaves and a new main player is selected
         console.log('You are now the main player');
     }else if (data.action === 'error'){ // error handling
@@ -40,8 +50,9 @@ socket.addEventListener('message', (event) => {
         playersList.innerHTML = '';
         data.players.forEach(player => {
             const div = document.createElement('div');
+            div.classList.add("locked-row-container")
             const playerItem = document.createElement('li');
-            playerItem.textContent = `${player.name} ${player.isMain ? '(Main Player)' : '(Secondary Player)'}`;
+            playerItem.textContent = `${player.name} ${player.isMain ? '👑' : ''}`
             div.appendChild(playerItem);
             const switchButton = document.createElement('div');
             switchButton.className = 'form-check form-switch';
@@ -56,6 +67,26 @@ socket.addEventListener('message', (event) => {
             div.appendChild(switchButton);
             playersList.appendChild(div);
         });
+    }else if (data.action === "statusChange"){ // called when the main player changed the status of the lobby and the server sent all the players updated info
+        //console.log('Status changed:', data.isOpen);
+        const isOpen = data.isOpen;
+        if( isOpen){
+            document.getElementById('btnradio').checked = true;
+            document.getElementById('btnradio1').checked = false;
+        }else{
+            document.getElementById('btnradio').checked = false;
+            document.getElementById('btnradio1').checked = true;
+        }
+    }else if (data.action === "visibilityChange"){ // called by the server when the main player changed the visibility of the lobby
+        //console.log('Visibility changed:', data.isPublic);
+        const isPublic = data.isPublic;
+        if(isPublic){
+            document.getElementById('btnradio2').checked = true;
+            document.getElementById('btnradio3').checked = false;
+        } else {
+            document.getElementById('btnradio2').checked = false;
+            document.getElementById('btnradio3').checked = true;
+        }
     }else if (data.action === "mapData"){
         mapData = data.mapData;
         mapData.players = data.players; // adding the players to the map data so that they can be drawn on the map
@@ -71,6 +102,21 @@ function requestGameStart(){ // function to request the game start
 function requestChangeReadyState(playerId){ // function to change the ready state of the player
     const isReady = document.getElementById(`readySwitch-${playerId}`).checked;
     socket.send(JSON.stringify({ action: 'readyUPchange', isReady: isReady }));
+}
+
+function requestVisibilityChange(visibility){ // function for requesting the server to change the visibility of the lobby
+    const lobbyId = window.location.pathname.split('/').pop();
+    socket.send(JSON.stringify({ action: 'changeLobbyVisibility', visibility: visibility, lobbyId: lobbyId }));
+}
+
+function copyLobbyPassword(){ // function to copy the lobby password to the clipboard, it is called in the lobby modal
+    const lobbyPassword = document.getElementById('lobbyPassword').textContent.split(': ')[1];
+    navigator.clipboard.writeText(lobbyPassword).then(() => {
+        alert('Lobby password copied to clipboard!');
+    }).catch(err => {
+        console.error('Failed to copy text: ', err);
+        alert('Failed to copy lobby password. Please try again.');
+    });
 }
 
 let keysPressed = {}; // object to hold the keys that are currently pressed

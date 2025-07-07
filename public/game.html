@@ -29,18 +29,54 @@
             <div class="modal-dialog">
                 <div class="modal-content">
                 <div class="modal-header">
-                    <h1 class="modal-title fs-5" id="lobbyModalLabel">Lobby Waiting Room</h1>
+                    <h1 class="modal-title fs-5 fw-bold" id="lobbyModalLabel">Lobby Waiting Room</h1>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="player-list">
-                        <h2>Players in Lobby</h2>
-                        <ul id="playerList" class="list-group">
-                        </ul>
+                    <div class="row">
+                        <div class="col">
+                            <div class="player-list">
+                                <p class="fs-5 fw-bold">Players in Lobby:</p>
+                                <ul id="playerList" class="list-group">
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="col border-start gap">
+                            <p class="fs-5 fw-bold">Lobby Menu (Host Only):</p>
+                            <div class="locked-row-container gap">
+                                <p class="pt-3">Status: </p>
+                                <div class="btn-group" role="group" aria-label="Basic radio toggle button group">
+                                    <input type="radio" class="btn-check" name="btnradio" id="btnradio" autocomplete="off" disabled>
+                                    <label class="btn btn-outline-primary" for="btnradio">Open</label>
+
+                                    <input type="radio" class="btn-check" name="btnradio1" id="btnradio1" autocomplete="off" disabled>
+                                    <label class="btn btn-outline-primary" for="btnradio1">Close</label>
+                                </div>
+                            </div>
+                            <div class="locked-row-container gap">
+                                <p class="pt-3">Visibility: </p>
+                                <div class="btn-group" role="group" aria-label="toggle button group2">
+                                    <input type="radio" class="btn-check" name="btnradio2" id="btnradio2" autocomplete="off" onclick="requestVisibilityChange(true)">
+                                    <label class="btn btn-outline-primary" for="btnradio2">Public</label>
+
+                                    <input type="radio" class="btn-check" name="btnradio3" id="btnradio3" autocomplete="off" onclick="requestVisibilityChange(false)">
+                                    <label class="btn btn-outline-primary" for="btnradio3">Private</label>
+                                </div>
+                            </div>
+                            <div class="locked-row-container gap">
+                                <p class="pt-3">lobbyID: </p>
+                                <textarea name="" id="lobbyID" disabled></textarea>
+                            </div>
+                            <button type="button" class="btn btn-success" onclick="requestGameStart()">Start Game (Host Only)</button>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-success" onclick="requestGameStart()">Start Game (Host Only)</button>
+                    <div class="locked-row-container gap">
+                        <p class="pt-3">Password: </p>
+                        <textarea name="lobbyPassword" id="lobbyPassword" disabled></textarea>
+                        <button class="btn btn-secondary" onclick="copyLobbyPassword()">Copy Password</button>
+                    </div>
                 </div>
                 </div>
             </div>

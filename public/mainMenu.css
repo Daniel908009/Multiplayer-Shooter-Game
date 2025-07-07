@@ -9,6 +9,9 @@
     flex-direction: column;
     gap: 10px;
 }
+.gap{
+    gap: 10px;
+}
 .spaceOut2 {
     display: flex;
     flex-direction: row;
@@ -17,6 +20,9 @@
 .limited-width{
     max-width: 300px;
     width: 100%;
+}
+.limited-width2{
+    max-width: 800px;
 }
 .centeredContent{
     display: flex;
@@ -28,4 +34,22 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+}
+.locked-row-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+@media (max-width: 768px) {
+    .row-container {
+        flex-direction: column;
+        align-items: center;
+    }
+    .topOptions > * {
+        width: 300px;
+        font-size: larger;
+    }
+}
+textarea {
+    height: 35px;
 }

@@ -35,24 +35,28 @@
                 </div>
                 <div class="modal-body">
                     <div>
-                        <div class="row-container">
-                            <p class="pt-3">LobbyID: </p>
-                            <textarea id="lobbyID"></textarea>
+                        <div class="row-container gap">
+                            <div class="locked-row-container gap">
+                                <p class="pt-3">LobbyID: </p>
+                                <textarea id="lobbyID"></textarea>
+                            </div>
                             <button class="btn btn-primary" onclick="randomizeLobbyID()">Randomize Lobby ID</button>
                         </div>
                         <hr>
-                        <div class="row-container">
+                        <div class="locked-row-container gap">
                             <p class="pt-3">Public: </p>
                             <input class="form-check-input" type="checkbox" value="" id="public" checked>
                         </div>
                         <hr>
-                        <div class="row-container">
-                            <p class="pt-3">Password: </p>
-                            <textarea id="lobbyPassword"></textarea>
+                        <div class="row-container gap">
+                            <div class="locked-row-container gap">
+                                <p class="pt-3">Password: </p>
+                                <textarea id="lobbyPassword"></textarea>
+                            </div>
                             <button class="btn btn-primary" onclick="randomizePassword()">Randomize Password</button>
                         </div>
                         <hr>
-                        <div class="row-container">
+                        <div class="locked-row-container gap">
                             <p class="pt-3">Maximum players: </p>
                             <select id="maxPlayers">
                                 <option value="1">1</option>
@@ -63,6 +67,14 @@
                                 <option value="6" selected>6</option>
                             </select>
                         </div>
+                    </div>
+                    <hr>
+                    <div class="row-container gap">
+                        <div class="locked-row-container gap">
+                            <p class="pt-3">Your username: </p>
+                            <textarea id="usernameForLobbyCreation"></textarea>
+                        </div>
+                        <button class="btn btn-primary" onclick="randomizeUsername()">Randomize Name</button>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -80,12 +92,12 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="row-container">
+                    <div class="locked-row-container">
                         <p class="pt-3">LobbyID: </p>
                         <textarea id="lobbyID"></textarea>
                     </div>
                     <hr>
-                    <div class="row-container">
+                    <div class="locked-row-container">
                         <p class="pt-3">Password: </p>
                         <textarea id="lobbyPassword"></textarea>
                     </div>
@@ -105,10 +117,11 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <div id="lobbyList">
+                    <div id="lobbyList" class="spaceOut">
                     </div>
                 </div>
-                <div class="modal-footer">
+                <div class="modal-footer d-flex justify-content-between">
+                    <button type="button" class="btn btn-secondary" onclick="requestPublicLobbies()">Refresh</button>
                     <button type="button" class="btn btn-primary" onclick="showCreateLobbyModal()">Create a New Lobby</button>
                 </div>
                 </div>
@@ -121,21 +134,25 @@
             <div class="container">
                 <h1 class="text-center my-5 fw-bold">Multiplayer Shooter Game</h1>
                 <div class="row justify-content-center">
-                    <div class="row-container spaceOut2">
-                        <div class="col-md-4 text-center fw-bold col">
-                            <p class="pt-2">Username</p>
+                    <div class="limited-width2">
+                        <hr>
+                        <div class="row-container spaceOut2">
+                            <div class="col-md-4 text-center fw-bold col topOptions">
+                                <p class="pt-2">Username</p>
+                            </div>
+                            <div class="col-md-4 text-center col topOptions">
+                                <textarea name="username" id="username"></textarea>
+                            </div>
+                            <div class="col-md-4 text-center col topOptions">
+                                <button class="btn btn-primary fs-5" onclick="randomizeUsername()">Randomize Name</button>
+                            </div>
                         </div>
-                        <div class="col-md-4 text-center col">
-                            <textarea name="username" id="username"></textarea>
-                        </div>
-                        <div class="col-md-4 text-center col">
-                            <button class="btn btn-primary fs-5" onclick="randomizeUsername()">Randomize Name</button>
-                        </div>
+                        <hr>
                     </div>
                     <div class="col-md-4 text-center mt-4 spaceOut centeredContent">
                         <button class="btn btn-primary fs-5 limited-width" onclick="showPublicLobbies()">Show Public Lobbies</button>
                         <button class="btn btn-primary fs-5 limited-width" onclick="joinPrivateLobby()">Join Private Lobby</button>
-                        <button class="btn btn-primary fs-5 limited-width" onclick="openGithubWindow()">Github Repository Of The Game</button>
+                        <button class="btn btn-primary fs-5 limited-width" onclick="openGithubWindow()">Github Repository Of This Game</button>
                     </div>
                 </div>
             </div>

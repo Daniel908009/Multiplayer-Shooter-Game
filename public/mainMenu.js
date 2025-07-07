@@ -1,3 +1,13 @@
+// updating the username in both the main menu and the create lobby modal
+const mainMenuUsername = document.getElementById('username');
+const lobbyUsername = document.getElementById('usernameForLobbyCreation');
+mainMenuUsername.addEventListener('input', () => {
+    lobbyUsername.value = mainMenuUsername.value;
+});
+lobbyUsername.addEventListener('input', () => {
+    mainMenuUsername.value = lobbyUsername.value;
+})
+
 function randomizeUsername(){ // called when the user randomizes the username
     let result = '';
     // asking the server for a random username
@@ -13,6 +23,7 @@ function randomizeUsername(){ // called when the user randomizes the username
                 result = t.slice(1, -1); // removing the quotes from the string
                 //console.log(document.getElementById("username"));
                 document.getElementById("username").value = result;
+                document.getElementById("usernameForLobbyCreation").value = result;
             });
         } else {
             response.text().then(text => {
@@ -110,8 +121,8 @@ function requestPrivateLobbyJoin(){ // called when the user submits the join pri
     joinLobby();
 }
 
-const publicLobbiesModal = new bootstrap.Modal(document.getElementById('publicLobbies'));
-function showPublicLobbies(){ // displaying all the public lobbies from the server
+function requestPublicLobbies(){ // requesting the lobbies from the server
+    console.log("Requesting public lobbies");
     fetch('/get-public-lobbies', {
         method: 'Get',
         headers: {
@@ -128,18 +139,24 @@ function showPublicLobbies(){ // displaying all the public lobbies from the serv
                     if (data.message) {
                         lobbyList.innerHTML = `<li class="list-group-item text-center">${data.message}</li>`;
                     }else{
+                        //console.log("Public lobbies:", data);
                         data.forEach(lobby => {
-                            const listItem = document.createElement('li');
-                            listItem.className = 'list-group-item d-flex justify-content-between align-items-center';
-                            listItem.textContent = `Lobby ID: ${lobby.id} - Players: ${lobby.players}`;
-                            const joinButton = document.createElement('button');
-                            joinButton.className = 'btn btn-primary';
-                            joinButton.textContent = 'Join';
-                            joinButton.onclick = () => {
-                                window.location.href = `/game/${lobby.id}?username=${encodeURIComponent(document.getElementById("username").value.trim())}`;
+                            const div = document.createElement('div');
+                            div.classList.add('locked-row-container', 'gap');
+                            const p = document.createElement('p');
+                            p.classList.add('pt-3');
+                            p.innerHTML = `<strong>Lobby ID:</strong> ${lobby.id} - <strong>Players:</strong> ${lobby.players}/${lobby.maxPlayers}`;
+                            const button = document.createElement('button');
+                            button.className = 'btn btn-primary';
+                            button.textContent = 'Join';
+                            button.onclick = () => {
+                                document.getElementById("lobbyID").value = lobby.id;
+                                document.getElementById("lobbyPassword").value = ''; // clearing the password field
+                                joinLobby();
                             };
-                            listItem.appendChild(joinButton);
-                            lobbyList.appendChild(listItem);
+                            div.appendChild(p);
+                            div.appendChild(button);
+                            lobbyList.appendChild(div);
                         });
                     }
                 });
@@ -148,7 +165,17 @@ function showPublicLobbies(){ // displaying all the public lobbies from the serv
                 response.text().then(text => {
                     alert(`Error fetching public lobbies: ${text}`);
                 });
-            }})
+            }}).catch(error => {
+                console.error('Error fetching public lobbies:', error);
+                const lobbyList = document.getElementById("lobbyList");
+                lobbyList.innerHTML = '<li class="list-group-item text-center">Failed to fetch public lobbies. Please try again later.</li>';
+                alert('Failed to fetch public lobbies. Please try again later.');
+            });
+}
+
+const publicLobbiesModal = new bootstrap.Modal(document.getElementById('publicLobbies'));
+function showPublicLobbies(){ // displaying all the public lobbies from the server
+    requestPublicLobbies()
     publicLobbiesModal.show();
 }
 
