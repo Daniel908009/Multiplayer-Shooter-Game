@@ -15,7 +15,7 @@ socket.addEventListener('open', () => {
     // sending the join action to the server
     const lobbyId = window.location.pathname.split('/').pop();
     const playerName = new URLSearchParams(window.location.search).get('username') || 'Anonymous';
-    socket.send(JSON.stringify({ action: 'join', lobbyId, playerName}));
+    socket.send(JSON.stringify({ action: 'join', lobbyId, playerName }));
 });
 
 socket.addEventListener('message', (event) => {

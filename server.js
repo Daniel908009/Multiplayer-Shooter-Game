@@ -11,6 +11,7 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 const lobbies = {}; // later I will use a database
+const mapCreators = {}; // the same as lobbies but this one ensures that no one else can join the map creator tab apart from the creator
 
 app.post('/create-lobby', (req, res) => {
     const {lobbyId, public, password, username, maxPlayers} = req.body;
@@ -27,6 +28,10 @@ app.post('/create-lobby', (req, res) => {
     if (password.length < 3 && !public) { // if the lobby is private then the password must be at least 3 characters long
         return res.status(400).json("Password must be at least 3 characters long for private lobbies");
     }
+    let randomString = ''
+    for (let i = 0; i < 5; i++) { // generating a random string of 5 characters to be used for security reasons
+        randomString += String.fromCharCode(Math.floor(Math.random() * 26) + 97);
+    }
     lobbies[lobbyId] = {
         players: [],
         joiningID: 0, // this will be used to assign unique IDs to players
@@ -35,11 +40,12 @@ app.post('/create-lobby', (req, res) => {
         isPublic: public, // if the lobby is public or private
         password: password, // used as an extra security measure for private lobbies
         maxPlayers: maxPlayers, // maximum number of players that will be allowed to join
-        bullets: [] // this will hold all the bullet objects
+        bullets: [], // this will hold all the bullet objects
+        securityString: randomString, // this will be used to ensure that only real players can join the lobby, basically it should prevent someone from just copy pasting the https address into a new window
     };
     //console.log(lobbies);
-    res.status(200).send('Lobby created successfully');
-    console.log(`Lobby created with ID: ${lobbyId}`);
+    res.status(200).send({message: "Lobby created successfully", string: randomString}); // sending the random string to the client so that it can be used to join the lobby
+    console.log(`Lobby created with ID: ${lobbyId} and security string: ${randomString}`);
 });
 
 app.get('/get-public-lobbies', (req, res) => { // this is called when the client wants to get all the public lobbies
@@ -91,7 +97,12 @@ app.post('/join-lobby', (req, res) => { // this is called when a player wants to
         return res.status(400).json("Lobby ID must be at least 5 characters long");
     }
     console.log(`Player ${playerName} joined lobby ${lobbyId}`);
-    res.status(200).send("joined successfully");
+    let randomString = '';
+    for (let i = 0; i < 5; i++) {
+        randomString += String.fromCharCode(Math.floor(Math.random() * 26) + 97);
+    }
+    lobbies[lobbyId].securityString = randomString; // updating the security string for the lobby
+    res.status(200).send({ message: "Joining lobby", securityString: randomString }); // sending the security string to the client so that it can be used to join the lobby
 });
 
 app.get('/', (req, res) => {
@@ -100,10 +111,44 @@ app.get('/', (req, res) => {
 
 app.get('/game/:lobbyId', (req, res) => {
     const lobbyId = req.params.lobbyId;
+    const securityString = req.query.securityString;
     if (!lobbies[lobbyId]) {
         return res.status(404).send("Lobby not found");
     }
+    if (lobbies[lobbyId].securityString !== securityString || lobbies[lobbyId].securityString == undefined) {
+        console.log(`Invalid security string for lobby ${lobbyId}`);
+        console.log(`Expected: ${lobbies[lobbyId].securityString}, received: ${securityString}`);
+        return res.status(403).send("Invalid security string");
+    }
+    lobbies[lobbyId].securityString = undefined; // clearing the security string so that it cannot be used again
     res.sendFile(path.join(__dirname, 'public', 'game.html'));
+});
+
+app.post("/custom-map-creator", (req, res) => {
+    let randomString = ''
+    do {
+        randomString = '';
+        for (let i = 0; i < 5; i++) {
+            randomString += String.fromCharCode(Math.floor(Math.random() * 26) + 97);
+        }
+    } while (mapCreators[randomString]); // ensuring that the random string is unique
+    mapCreators[randomString] = {
+        randomString: randomString,
+        ws: undefined, // this will hold the WebSocket connection of the creator
+    }
+    //console.log(`Map creator created with random string: ${randomString}`);
+    res.status(200).json({ message: "Map created successfully" , randomString: randomString }); // sending the random string to the client so that it can be used to join the map creator
+});
+
+app.get('/mapCreator/:randomString', (req, res) => {
+    const randomString = req.params.randomString;
+    if (!mapCreators[randomString]) {
+        return res.status(404).send("Map creator not found");
+    }
+    if (mapCreators[randomString].randomString == undefined) {
+        return res.status(403).send("Map creator already in use");
+    }
+    res.sendFile(path.join(__dirname, 'public', 'mapCreator.html'));
 });
 
 wss.on('connection', (ws) => {
@@ -300,13 +345,31 @@ wss.on('connection', (ws) => {
             //console.log(`Player ${player.name} is aiming at angle: ${player.position.angle}`);
         }else if (data.action === 'click'){
             // shooting here
+        }else if (data.action === "joinCreator"){ // when someone opens a creator window tab
+            const {randomString} = data;
+            //console.log("someone joined a random map creator")
+            //console.log(mapCreators[randomString]);
+            //console.log(randomString)
+            ws.rString = randomString; // storing the random string in the WebSocket object, its easier to do some things with it later
+            mapCreators[randomString].ws = ws; // setting the WebSocket connection of the creator
+            mapCreators[randomString].randomString = undefined
         }
     });
 
     ws.on('close', () => {
         const lobbyId = ws.lobbyId
-        //console.log(lobbies[lobbyId]);
-        //console.log(lobbies[lobbyId].players.length);
+        if (lobbyId == undefined){
+            //console.log("here")
+            // deleting the map creator if the creator left
+            const rString = ws.rString;
+            //console.log(ws)
+            //console.log(rString);
+            if (mapCreators[rString]) {
+                delete mapCreators[rString];
+                console.log(`Map creator with random string ${rString} deleted due to creator leaving`);
+                return;
+            }
+        }
         // if the player is main and there are more people in the lobby then selecting a new main
         if( lobbies[lobbyId] && lobbies[lobbyId].players.length > 1 && lobbies[lobbyId].players.find(player => player.ws === ws).isMain) {
             // finding the next main player

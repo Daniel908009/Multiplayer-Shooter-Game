@@ -76,15 +76,18 @@ function requestCreateLobby(){ // function for creating a lobby on the server
         body: JSON.stringify({ lobbyId: lobbyID, password: password, public: public, maxPlayers: maxPlayers, username: username })
     }).then(response => {
         if (response.ok) {
-            // redirect to the lobby
-            window.location.href = `/game/${lobbyID}?username=${encodeURIComponent(username)}`;
+            response.json().then(data => {
+                //console.log(data.string);
+                window.location.href = `/game/${lobbyID}?username=${encodeURIComponent(username)}&securityString=${data.string}`;
+            });
         } else {
             response.text().then(text => {
                 alert(`Error creating lobby: ${text}`);
             });
         }
-    }
-    )
+    }).catch(error => {
+        console.error('Error creating lobby:', error);
+    });
 }
 function joinLobby() {
     let username = document.getElementById("username").value.trim();
@@ -96,16 +99,20 @@ function joinLobby() {
         headers: {
             'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ lobbyId: lobbyID, playerName: username, password: password })
+        body: JSON.stringify({ lobbyId: lobbyID, password: password, playerName: username })
     }).then(response => {
         if (response.ok) {
-            // redirect to the lobby
-            window.location.href = `/game/${lobbyID}?username=${encodeURIComponent(username)}`;
+            response.json().then(data => {
+                //console.log(data);
+                window.location.href = `/game/${lobbyID}?username=${encodeURIComponent(username)}&securityString=${data.securityString}`;
+            });
         } else {
             response.text().then(text => {
                 alert(`Error joining lobby: ${text}`);
             });
         }
+    }).catch(error => {
+        console.error('Error joining lobby:', error);
     });
 }
 
@@ -177,6 +184,27 @@ const publicLobbiesModal = new bootstrap.Modal(document.getElementById('publicLo
 function showPublicLobbies(){ // displaying all the public lobbies from the server
     requestPublicLobbies()
     publicLobbiesModal.show();
+}
+
+function customMapWindow(){ // function that opens the custom map designer
+    // requesting the server to create a custom map creator
+    fetch("/custom-map-creator", {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+    }).then(response => {
+        if (response.ok) {
+            response.json().then(data => {
+                //console.log(data);
+                window.location.href =`/mapCreator/${data.randomString}?randomString=${data.randomString}`;
+            });
+        } else {
+            response.text().then(text => {
+                alert(`Error creating custom map creator: ${text}`);
+            });
+        }
+    })
 }
 
 function openGithubWindow(){ // function that opens the game documentation in a new tab
