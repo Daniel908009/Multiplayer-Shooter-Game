@@ -24,7 +24,7 @@
         />
     </head>
 
-    <body>
+    <body class="min-vh-100 d-flex flex-column">
 
         <div class="modal fade" id="createLobby" tabindex="-1" aria-labelledby="createLobbyLabel" aria-hidden="true">
             <div class="modal-dialog">
@@ -130,15 +130,15 @@
         <header>
             <!-- place navbar here -->
         </header>
-        <main>
-            <div class="container">
+        <main class="flex-fill d-flex">
+            <div class="container mt-auto mb-auto">
                 <h1 class="text-center my-5 fw-bold">Multiplayer Shooter Game</h1>
                 <div class="row justify-content-center">
-                    <div class="limited-width2">
+                    <div class="limited-width2 align-self-center">
                         <hr>
                         <div class="row-container spaceOut2">
                             <div class="col-md-4 text-center fw-bold col topOptions">
-                                <p class="pt-2">Username</p>
+                                <p class="pt-2 fs-5">Username</p>
                             </div>
                             <div class="col-md-4 text-center col topOptions">
                                 <textarea name="username" id="username"></textarea>
@@ -149,7 +149,7 @@
                         </div>
                         <hr>
                     </div>
-                    <div class="col-md-4 text-center mt-4 spaceOut centeredContent">
+                    <div class="col-md-4 text-center mt-4 gap centeredContent">
                         <button class="btn btn-primary fs-5 limited-width" onclick="showPublicLobbies()">Show Public Lobbies</button>
                         <button class="btn btn-primary fs-5 limited-width" onclick="joinPrivateLobby()">Join Private Lobby</button>
                         <button class="btn btn-primary fs-5 limited-width" onclick="showCreateLobbyModal()">Create Lobby</button>
@@ -159,9 +159,9 @@
                 </div>
             </div>
         </main>
-        <footer>
-            <div class="text-center my-5 bg-primary text-white fw-bold">
-                <p>&copy; 2025 Daniel Kriz</p>
+        <footer class="mt-auto pt-2">
+            <div class="text-center bg-primary text-white fw-bold">
+                <p class="mb-0">&copy; 2025 Daniel Kriz</p>
             </div>
         </footer>
         <!-- Bootstrap JavaScript Libraries -->

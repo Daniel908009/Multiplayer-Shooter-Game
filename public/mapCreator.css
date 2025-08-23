@@ -2,3 +2,19 @@ html, body {
     overflow: hidden;
     height: 100%;
 }
+.row-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.locked-row-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.gap{
+    gap: 10px;
+}
+textarea {
+    height: 35px;
+}
