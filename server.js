@@ -43,9 +43,7 @@ app.post('/create-lobby', (req, res) => {
         bullets: [], // this will hold all the bullet objects
         securityString: randomString, // this will be used to ensure that only real players can join the lobby, basically it should prevent someone from just copy pasting the https address into a new window
     };
-    //console.log(lobbies);
     res.status(200).send({message: "Lobby created successfully", string: randomString}); // sending the random string to the client so that it can be used to join the lobby
-    console.log(`Lobby created with ID: ${lobbyId} and security string: ${randomString}`);
 });
 
 app.get('/get-public-lobbies', (req, res) => { // this is called when the client wants to get all the public lobbies
@@ -70,7 +68,6 @@ app.get('/random-username', (req, res) => { // this is called when a client requ
         return res.status(500).json("Error loading names on the servers side. Sorry :(");
     }
     // generating a random name from the list
-    //console.log(allNames)
     const result = `${allNames["firstNames"][Math.floor(Math.random() * allNames["firstNames"].length)]} ${allNames["lastNames"][Math.floor(Math.random() * allNames["lastNames"].length)]}`;
     res.status(200).json( result );
 })
@@ -96,7 +93,6 @@ app.post('/join-lobby', (req, res) => { // this is called when a player wants to
     if (lobbyId.length < 5) {
         return res.status(400).json("Lobby ID must be at least 5 characters long");
     }
-    console.log(`Player ${playerName} joined lobby ${lobbyId}`);
     let randomString = '';
     for (let i = 0; i < 5; i++) {
         randomString += String.fromCharCode(Math.floor(Math.random() * 26) + 97);
@@ -116,8 +112,6 @@ app.get('/game/:lobbyId', (req, res) => {
         return res.status(404).send("Lobby not found");
     }
     if (lobbies[lobbyId].securityString !== securityString || lobbies[lobbyId].securityString == undefined) {
-        console.log(`Invalid security string for lobby ${lobbyId}`);
-        console.log(`Expected: ${lobbies[lobbyId].securityString}, received: ${securityString}`);
         return res.status(403).send("Invalid security string");
     }
     lobbies[lobbyId].securityString = undefined; // clearing the security string so that it cannot be used again
@@ -136,7 +130,6 @@ app.post("/custom-map-creator", (req, res) => {
         randomString: randomString,
         ws: undefined, // this will hold the WebSocket connection of the creator
     }
-    //console.log(`Map creator created with random string: ${randomString}`);
     res.status(200).json({ message: "Map created successfully" , randomString: randomString }); // sending the random string to the client so that it can be used to join the map creator
 });
 
@@ -234,7 +227,6 @@ wss.on('connection', (ws) => {
                     lobbies[lobbyId].players.forEach(player => {
                         player.ws.send(JSON.stringify({ action: 'gameStarted', isMain: player.isMain })); // isMain has to be sent because of map requesting that is done later
                     });
-                    console.log(`Game started in lobby ${lobbyId}`);
                 }else{
                     ws.send(JSON.stringify({ action: 'error', message: 'Not all players are ready.' }));
                 }
@@ -247,7 +239,6 @@ wss.on('connection', (ws) => {
                     player.ready = isReady;
                 }
             });
-            console.log(`Player ${ws.lobbyId} is now ${isReady ? 'ready' : 'not ready'}`);
             // sending the updated player list to all players in the lobby
             lobbies[lobbyId].players.forEach(p => {
                 p.ws.send(JSON.stringify({
@@ -278,7 +269,6 @@ wss.on('connection', (ws) => {
             lobbies[lobbyId].players.forEach(p => {
                 p.ws.send(JSON.stringify({action:"visibilityChange", isPublic: visibility}));
             });
-            console.log(`Lobby ${lobbyId} visibility changed to ${visibility ? 'public' : 'private'}`);
         }else if(data.action === 'requestMap'){ // sends the map 30 times a second to all the players, later it will be optimalized
             const lobbyId = ws.lobbyId;
             // this is a test map, later it will be done with json files
@@ -329,9 +319,8 @@ wss.on('connection', (ws) => {
             // calculating the angle based on the new position
             const tileSize = data.tileSize;
             let x = player.position.x * tileSize + tileSize / 2
-            let y = player.position.y * tileSize + tileSize / 2
+            let y = plmapCreatorsayer.position.y * tileSize + tileSize / 2
             player.position.angle = Math.atan2(player.mousePos.y - y, player.mousePos.x - x);
-            //console.log(`New position of player ${player.name}: (${player.position.x}, ${player.position.y})`);
         }else if (data.action === 'mouseMove'){
             // getting the players position and calculating the angle to the mouse position
             const lobbyId = ws.lobbyId;
@@ -342,31 +331,28 @@ wss.on('connection', (ws) => {
             let x = player.position.x * tileSize + tileSize / 2
             let y = player.position.y * tileSize + tileSize / 2
             player.position.angle = Math.atan2(player.mousePos.y - y, player.mousePos.x - x);
-            //console.log(`Player ${player.name} is aiming at angle: ${player.position.angle}`);
         }else if (data.action === 'click'){
             // shooting here
         }else if (data.action === "joinCreator"){ // when someone opens a creator window tab
             const {randomString} = data;
-            //console.log("someone joined a random map creator")
-            //console.log(mapCreators[randomString]);
-            //console.log(randomString)
             ws.rString = randomString; // storing the random string in the WebSocket object, its easier to do some things with it later
-            mapCreators[randomString].ws = ws; // setting the WebSocket connection of the creator
-            mapCreators[randomString].randomString = undefined
+            if(randomString in mapCreators){
+                mapCreators[randomString].ws = ws; // setting the WebSocket connection of the creator
+                mapCreators[randomString].randomString = undefined
+            }else{
+                ws.send(JSON.stringify({ action: 'destroyPage'})); // specificaly on mobile I was able to load the page without the server resending me the files. 
+                // Basically I could open a preview that was saved on my phone and the javascript called the server for join request but the creator didnt exist anymore so it caused an error and the server crashed
+            }
         }
     });
 
     ws.on('close', () => {
         const lobbyId = ws.lobbyId
         if (lobbyId == undefined){
-            //console.log("here")
             // deleting the map creator if the creator left
             const rString = ws.rString;
-            //console.log(ws)
-            //console.log(rString);
             if (mapCreators[rString]) {
                 delete mapCreators[rString];
-                console.log(`Map creator with random string ${rString} deleted due to creator leaving`);
                 return;
             }
         }
@@ -377,7 +363,6 @@ wss.on('connection', (ws) => {
             if (nextMain) {
                 nextMain.isMain = true;
                 nextMain.ws.send(JSON.stringify({ action: 'newMain' }));
-                console.log(`Lobby ${lobbyId} has a new main player: ${nextMain.id}`);
             }
             // removing the player from the lobby
             lobbies[lobbyId].players = lobbies[lobbyId].players.filter(player => player.ws !== ws);
@@ -402,7 +387,6 @@ wss.on('connection', (ws) => {
         }else if (lobbies[lobbyId] && lobbies[lobbyId].players.length > 1) { // if a regular player left
             // removing the player from the lobby
             lobbies[lobbyId].players = lobbies[lobbyId].players.filter(player => player.ws !== ws);
-            console.log(`Player left lobby ${lobbyId}`);
             // sending the updated player list to all players in the lobby
             lobbies[lobbyId].players.forEach(player => {
                 player.ws.send(JSON.stringify({
@@ -428,7 +412,6 @@ wss.on('connection', (ws) => {
                 lobbies[lobbyId].players.forEach(player => {
                     player.ws.send(JSON.stringify({action:"statusChange", isOpen: true}));
                 });
-                console.log(`Lobby ${lobbyId} is now open for joining`);
             }
         }else{ // if the last player left the lobby
             // stopping the interval that sends the map data
@@ -437,7 +420,6 @@ wss.on('connection', (ws) => {
             }
             // deleting the lobby if there are no players left
             delete lobbies[lobbyId];
-            console.log(`Lobby ${lobbyId} deleted due to no players`);
         }
     });
 });

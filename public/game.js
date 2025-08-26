@@ -11,7 +11,6 @@ const socket = new WebSocket(`ws://${location.host}`);
 let mapData = null; // this will hold the map data when it is received from the server, modifying it here will not help the client in any way since all the logic is on the server side
 
 socket.addEventListener('open', () => {
-    console.log('Connected to the server');
     // sending the join action to the server
     const lobbyId = window.location.pathname.split('/').pop();
     const playerName = new URLSearchParams(window.location.search).get('username') || 'Anonymous';
@@ -21,12 +20,10 @@ socket.addEventListener('open', () => {
 socket.addEventListener('message', (event) => {
     const data = JSON.parse(event.data);
     if (data.action === 'joined') { // received when the player joins the lobby
-        console.log(`Joined lobby as ${data.isMain ? 'main' : 'secondary'} player with ID: ${data.uniqueID}`);
         // setting the information in the lobby modal
         document.getElementById('btnradio').checked = true;
         document.getElementById('lobbyID').textContent = `${data.lobbyId}`;
         document.getElementById('lobbyPassword').textContent = `${data.lobbyPassword || 'None'}`;
-        //document.getElementById('maxPlayers').textContent = `Max Players: ${data.maxPlayers}`;
         if(data.isPublic){
             document.getElementById('btnradio2').checked = true;
         } else {
@@ -39,7 +36,6 @@ socket.addEventListener('message', (event) => {
     }else if (data.action === 'gameStarted'){ // this is received when the game is started
         // closing the modal
         lobbyModal.hide();
-        console.log('Game started');
         if(data.isMain){
             socket.send(JSON.stringify({ action: 'requestMap' })); // requesting a random map from the server, later it will have some options and conditions
         }
@@ -78,7 +74,6 @@ socket.addEventListener('message', (event) => {
             document.getElementById('btnradio1').checked = true;
         }
     }else if (data.action === "visibilityChange"){ // called by the server when the main player changed the visibility of the lobby
-        //console.log('Visibility changed:', data.isPublic);
         const isPublic = data.isPublic;
         if(isPublic){
             document.getElementById('btnradio2').checked = true;
@@ -90,7 +85,6 @@ socket.addEventListener('message', (event) => {
     }else if (data.action === "mapData"){
         mapData = data.mapData;
         mapData.players = data.players; // adding the players to the map data so that they can be drawn on the map
-        //console.log('Map data received:', mapData);
     }
 });
 
@@ -114,7 +108,6 @@ function copyLobbyPassword(){ // function to copy the lobby password to the clip
     navigator.clipboard.writeText(lobbyPassword).then(() => {
         alert('Lobby password copied to clipboard!');
     }).catch(err => {
-        console.error('Failed to copy text: ', err);
         alert('Failed to copy lobby password. Please try again.');
     });
 }
@@ -124,7 +117,6 @@ function copyLobbyID(){ // function to copy the lobby ID to the clipboard, it is
     navigator.clipboard.writeText(lobbyID).then(() => {
         alert('Lobby ID copied to clipboard!');
     }).catch(err => {
-        console.error('Failed to copy text: ', err);
         alert('Failed to copy lobby ID. Please try again.');
     });
 }
@@ -163,7 +155,6 @@ function startControls(){ // starts the controls to request movement from the se
 }
 
 function drawMap(){ // function for drawing the map that is currently loaded
-    //console.log(mapData);
     // used for scaling
     let baseSize = windowWidth > windowHeight ? windowHeight : windowWidth;
     let tileSize = baseSize / 20;
@@ -187,14 +178,11 @@ function drawMap(){ // function for drawing the map that is currently loaded
 function drawPlayers(){ // draws the players on their x and y positions that are stored on the server
     if (mapData){
         mapData.players.forEach(player =>{
-            // drawing the actual players
-            //console.log(player.color)
             fill(player.color.r, player.color.g, player.color.b);
             let tileSize = windowWidth > windowHeight ? windowHeight / 20 : windowWidth / 20;
             let xPosition = player.position.x * tileSize + tileSize / 2;
             let yPosition = player.position.y * tileSize + tileSize / 2;
             ellipse(xPosition, yPosition, tileSize*0.8, tileSize*0.8);
-            //console.log(`Drawing player ${player.name} at (${xPosition}, ${yPosition})`);
             // drawing the angle of the player as a line
             stroke(0);
             let angle = player.position.angle;

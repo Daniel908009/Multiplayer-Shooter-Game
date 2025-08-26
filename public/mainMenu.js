@@ -8,6 +8,12 @@ lobbyUsername.addEventListener('input', () => {
     mainMenuUsername.value = lobbyUsername.value;
 })
 
+if(new URLSearchParams(window.location.search).has('error')){ // displaying an error if there is one in the URL, this can happen if a player was send here from another page that experienced a problem
+    const errorMessage = new URLSearchParams(window.location.search).get('error');
+    alert(errorMessage);
+    window.history.replaceState({}, document.title, window.location.pathname);
+}
+
 function randomizeUsername(){ // called when the user randomizes the username
     let result = '';
     // asking the server for a random username
@@ -119,7 +125,6 @@ function joinLobby() {
 
 const modal = new bootstrap.Modal(document.getElementById('privateLobby'))
 function joinPrivateLobby(){ // showing the modal for joining a private lobby
-    //console.log(modal);
     modal.show();
 }
 
@@ -136,17 +141,13 @@ function requestPublicLobbies(){ // requesting the lobbies from the server
             'Content-Type': 'application/json'
         }
         }).then(response => {
-            //console.log(response)
             if (response.ok) {
                 response.json().then(data => {
-                    //console.log("Public lobbies fetched successfully");
-                    //console.log(data);
                     const lobbyList = document.getElementById("lobbyList");
                     lobbyList.innerHTML = '';
                     if (data.message) {
                         lobbyList.innerHTML = `<li class="list-group-item text-center">${data.message}</li>`;
                     }else{
-                        //console.log("Public lobbies:", data);
                         data.forEach(lobby => {
                             const div = document.createElement('div');
                             div.classList.add('locked-row-container', 'gap');
@@ -196,7 +197,6 @@ function customMapWindow(){ // function that opens the custom map designer
     }).then(response => {
         if (response.ok) {
             response.json().then(data => {
-                //console.log(data);
                 window.location.href =`/mapCreator/${data.randomString}?randomString=${data.randomString}`;
             });
         } else {

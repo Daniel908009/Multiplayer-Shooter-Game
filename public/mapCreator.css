@@ -1,5 +1,6 @@
 html, body {
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
     height: 100%;
 }
 .row-container {
@@ -17,4 +18,17 @@ html, body {
 }
 textarea {
     height: 35px;
+}
+.scrollable {
+    overflow-y: auto;
+    height: 100vh;
+}
+@media (max-width: 768px) {  /* on smaller screens scrolling is allowed */
+    html, body {
+        overflow-y: auto;
+        height: auto;
+    }
+    .scrollable {
+        height: auto;
+    }
 }
