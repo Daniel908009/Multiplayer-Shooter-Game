@@ -29,13 +29,137 @@
             
         </header>
         <main>
+            <div class="modal fade" id="mainMapsLibraryModal" tabindex="-1" aria-labelledby="mainMapsLibraryLabel" aria-hidden="true">
+                <div class="modal-dialog modal-xl">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h1 class="modal-title fs-5">Main Maps Library</h1>
+                        </div>
+                        <div class="modal-body">
+                            <h4>List of Maps</h4>
+                            <div class="scrollableModal pe-4" id="mainMapsModalList"></div>
+                        </div>
+                        <div class="modal-footer">
+                            <div class="row w-100">
+                                <div class="col">
+                                    <input class="form-check-input me-2" type="checkbox" value="" id="mainMapsLocalStorage">
+                                    <label class="form-check-label" for="mainMapsLocalStorage">
+                                        Save Map to Local Storage
+                                    </label>
+                                </div>
+                                <div class="col">
+                                    <input class="form-control me-2" type="text" value="" id="mainMapsName" placeholder="Enter name (max 17 chars)">
+                                    <label class="form-check-label" for="mainMapsName">
+                                        Change Base Map Name
+                                    </label>
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-success min-width-button col" onclick="closeMainMapsLibraryModal()">Close</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal fade" id="importMapsModal" tabindex="-1" aria-labelledby="importMapsLabel" aria-hidden="true">
+                <div class="modal-dialog modal-xl">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h1 class="modal-title fs-5">Import Maps</h1>
+                        </div>
+                        <div class="modal-body scrollableModal">
+                            <div class="row">
+                                <div class="col-lg-4 col-12 pb-2 pe-4">
+                                    <h3>Via JSON file</h3>
+                                    <input type="file" id="importJsonFileInput" class="form-control" accept=".json" />
+                                    <div class="row">
+                                        <input class="form-control me-2 mt-2" type="text" value="" id="fileImportName" placeholder="Change import name (max 17 chars)">
+                                        <div class="form-check col-6 col-lg-12 d-flex align-items-center justify-content-center mt-2">
+                                            <input class="form-check-input me-2" type="checkbox" value="" id="fileCheckbox">
+                                            <label class="form-check-label" for="fileCheckbox">
+                                                Save to Local Storage
+                                            </label>
+                                        </div>
+                                        <button class="btn btn-primary mt-2 col-6 col-lg-12" onclick="importJson(`file`)">Import</button>
+                                    </div>
+                                </div>
+                                <hr class="d-lg-none d-block">
+                                <div class="col-lg-4 col-12 pb-2 pe-4">
+                                    <h3>Via copy paste</h3>
+                                    <textarea id="importJsonTextArea" class="form-control" placeholder="Paste your JSON text here"></textarea>
+                                    <div class="row">
+                                        <input class="form-control me-2 mt-2" type="text" value="" id="copyPasteImportName" placeholder="Change import name (max 17 chars)">
+                                        <div class="form-check col-6 col-lg-12 d-flex align-items-center justify-content-center mt-2">
+                                            <input class="form-check-input me-2" type="checkbox" value="" id="textCheckbox">
+                                            <label class="form-check-label" for="textCheckbox">
+                                                Save to Local Storage
+                                            </label>
+                                        </div>
+                                        <button class="btn btn-primary mt-2 col-6 col-lg-12" onclick="importJson(`text`)">Import</button>
+                                    </div>
+                                </div>
+                                <hr class="d-lg-none d-block">
+                                <div class="col-lg-4 col-12">
+                                    <h3>From maps library</h3>
+                                    <button class="btn btn-secondary w-100" onclick="mainMapsLibraryModalShow()" id="libraryButton">Select Map</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-success min-width-button" onclick="closeImportMapsModal()">Close</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal fade" id="mapsModal" tabindex="-1" aria-labelledby="showMapsLabel" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h1 class="modal-title fs-5">Maps Saved in Browser</h1>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row pe-4">
+                                <div class="col-3">
+                                    <p class="text-center fw-bold">Map Name</p>
+                                </div>
+                                <div class="col-3">
+                                    <p class="fw-bold">Map Size</p>
+                                </div>
+                                <div class="col-6">
+                                    <p class="text-center fw-bold">Actions</p>
+                                </div>
+                            </div>
+                            <div id="savedMapsList" class="scrollableModal p-3"></div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-success min-width-button" onclick="closeBrowserMapsModal()">Close</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal fade" id="exitModal" tabindex="-1" aria-labelledby="exitModalLabel" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h1 class="modal-title fs-5">Exit Confirmation</h1>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p>Are you sure you want to exit the map creator?</p>
+                        </div>
+                        <div class="modal-footer d-flex justify-content-between">
+                            <button type="button" class="btn btn-success min-width-button" onclick="closeExitModal()">NO</button>
+                            <button type="button" class="btn btn-danger min-width-button" onclick="changePage()">YES</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            </div>
             <div class="row">
                 <div class="col-12 col-md-8">
                     <div class="d-flex justify-content-center align-items-center" id="drawingArea">
 
                     </div>
                 </div>
-                <div class="col-12 col-md-4 scrollable">
+                <div class="col-12 col-md-4 scrollable" id="menu">
                     <h3 class="text-center fw-bold pt-2">Creator Menu</h3>
                     <hr>
                     <div class="row">
@@ -224,20 +348,47 @@
                             </div>
                         </div>
                         <div id="export">
-                            <div class="d-flex align-items-center flex-column gap-2">
-                                <div class="d-flex align-items-center gap-2 pt-2">
-                                    <label for="exportName">File Name:</label>
-                                    <input type="text" id="exportName" placeholder="Enter file name" />
+                            <div class="gap-2">
+                                <div class="row pt-2">
+                                    <label for="exportName" class="col-6">File Name:</label>
+                                    <input type="text" id="exportName" placeholder="Enter file name" class="col-6" />
                                 </div>
-                                <div class="d-flex align-items-center gap-2 pt-2">
-                                    <label for="exportType">Export as:</label>
-                                    <select name="exportType" id="exportType">
+                                <div class="row pt-2">
+                                    <label for="exportType" class="col-6">Export as:</label>
+                                    <select name="exportType" id="exportType" class="col-6">
                                         <option value="browser">Local Storage</option>
                                         <option value="copy">Copy to Clipboard</option>
                                         <option value="json">JSON</option>
                                     </select>
                                 </div>
-                                <button class="btn btn-primary mt-2" onclick="exportMap()">Export</button>
+                                <div class="row gap-2">
+                                    <button class="btn btn-primary mt-2 col" onclick="exportMap()">Export</button>
+                                </div>
+
+                            </div>
+                        </div>
+                        <hr>
+                        <div class="row">
+                            <div class="col">
+                                <p class="text-center fw-bold ms-5">Other Options</p>
+                            </div>
+                            <div class="col-auto pb-2">
+                                <button class="btn btn-warning" onclick="toggleMenuElement('otherMaps')">H</button>
+                            </div>
+                        </div>
+                        <div id="otherMaps">
+                            <div class="gap-2 pb-2">
+                                <div class="row g-3 ps-1 pe-1">
+                                    <div class="col-lg-4 col-12">
+                                        <button class="btn btn-primary w-100 d-flex justify-content-center" onclick="showBrowserMapsModal()">Show Maps Saved in Browser</button>
+                                    </div>
+                                    <div class="col-lg-4 col-12">
+                                        <button class="btn btn-secondary w-100 d-flex justify-content-center" onclick="importMapsModal()">Import Maps</button>
+                                    </div>
+                                    <div class="col-lg-4 col-12">
+                                        <button class="btn btn-danger w-100 d-flex justify-content-center" onclick="exitToMainPageModal()">Exit Creator</button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>

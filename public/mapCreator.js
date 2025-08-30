@@ -42,6 +42,7 @@ let zoneTypes = { // all the different zone types
 }
 let zoneSelected = false; // keeps track of whether a zone is currently selected
 const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0; // figuring out if the device is touch-enabled(probably mobile)
+let add = true;
 
 const webSocket = new WebSocket(`ws://${location.host}`);
 
@@ -58,6 +59,10 @@ webSocket.addEventListener("message", (event) => {
 
 // every time the windows is resized the canvas needs to be resized as well
 window.addEventListener('resize', () => {
+    resizeEditor();
+});
+
+function resizeEditor() {
     let div = document.getElementById('drawingArea');
     let width = div.offsetWidth;
     let height = div.offsetHeight;
@@ -69,6 +74,17 @@ window.addEventListener('resize', () => {
         tile.y = (tile.y / tile.size) * tileSize;
         tile.size = tileSize;
     });
+}
+
+let oldScrollY; // has to be outside the listener otherwise this wont work
+window.addEventListener('scroll', () => { // listening for scrolling, this is done because on smaller screens there needs to be an automatic scroll in the website, this comment doesnt make any sense does it?
+    let scrollY = window.scrollY;
+    if (isTouch) {
+        if(scrollY > document.getElementById("menu").offsetTop-document.getElementById("menu").offsetTop/3 && scrollY < document.getElementById("menu").offsetTop-document.getElementById("menu").offsetTop/5 && oldScrollY > scrollY) {
+            scrollTo(0, 0);
+        }
+        oldScrollY = scrollY;
+    }
 });
 
 let keysPressed = {}; // list of currently pressed keys
@@ -103,7 +119,7 @@ function update() {
     if (keysPressed['e'] || keysPressed['bE']) {
         zoom /= 1.1;
     }
-    if (keysPressed['r'] || keysPressed['backspace']) {
+    if (keysPressed['r']) {
         centerMap();
     }
 }
@@ -191,20 +207,101 @@ function speedToBase() { // function for resetting the speed to base
     document.getElementById('speedDisplay').innerText = "Speed: " + speed/10;
 }
 
+function processImportedData(jsonData, checkbox, closeModal, inputElement, nameBox) { // function for processing/checking imported JSON data
+    // checking that the map has everything
+    if (!jsonData || !jsonData.tiles || !Array.isArray(jsonData.tiles)) { // those are the most important checks, there is of course more to check but this is good enough for now
+        alert("Invalid map data!");
+        return;
+    }
+    // If everything is valid, then proceeding with importing
+    if (checkbox.checked) {
+        let maps = localStorage.getItem('maps');
+        if (maps) {
+            maps = JSON.parse(maps);
+        } else {
+            maps = [];
+        }
+        let allowedName = true; // this has to be done through a variable like this because of the way the alert works
+        maps.forEach(map => {
+            if (map.name === jsonData.name) {
+                alert("Map with this name already exists!");
+                allowedName = false;
+            }
+        });
+        if (!allowedName) return;
+        maps.push(jsonData);
+        localStorage.setItem('maps', JSON.stringify(maps));
+    }
+    // loading the map
+    loadMap(jsonData);
+    closeModal();
+    inputElement.value = '';
+    nameBox.value = '';
+    checkbox.checked = false;
+}
+
+function importJson(typeOfImport){ // function for importing JSON data from the import maps modal
+    let jsonData;
+    if(typeOfImport === 'file'){
+        const fileInput = document.getElementById('importJsonFileInput');
+        const checkbox = document.getElementById('fileCheckbox');
+        if(fileInput.files.length === 0){
+            alert("Please select a JSON file to import");
+            return;
+        }
+        let nameBox = document.getElementById('fileImportName');
+        let name = nameBox.value;
+        const file = fileInput.files[0];
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            jsonData = JSON.parse(event.target.result);
+            jsonData.name = name || jsonData.name;
+            processImportedData(jsonData, checkbox, closeImportMapsModal, fileInput, nameBox);
+        }
+        reader.readAsText(file);
+    }else if(typeOfImport === 'text'){
+        const textArea = document.getElementById('importJsonTextArea');
+        const checkbox = document.getElementById('textCheckbox');
+        let nameBox = document.getElementById('copyPasteImportName');
+        let name = nameBox.value;
+        jsonData = JSON.parse(textArea.value);
+        jsonData.name = name || jsonData.name;
+        processImportedData(jsonData, checkbox, closeImportMapsModal, textArea, nameBox);
+    }
+}
+
 let gridSizeX, gridSizeY; // variables that keep track of the size of the map grid
 function createGrid(){ // function for creating a grid that will be drawn on the canvas
     if(document.getElementById('gridRows').value === '' || document.getElementById('gridCols').value === ''){
         alert("Please enter valid grid dimensions");
         return;
-    }else if (document.getElementById('gridRows').value < 1 || document.getElementById('gridCols').value < 1 || document.getElementById('gridRows').value > 100 || document.getElementById('gridCols').value > 100){
-        alert("Please enter valid grid dimensions (1-100)");
+    }else if (document.getElementById('gridRows').value < 1 || document.getElementById('gridCols').value < 1 || document.getElementById('gridRows').value > 100 || document.getElementById('gridCols').value > 100 ||  document.getElementById('gridRows').value % 2 !== 0 || document.getElementById('gridCols').value % 2 !== 0){
+        alert("Please enter valid grid dimensions (1-100, only even numbers are allowed)");
         return;
     }
+    let oldX = gridSizeX;
+    let oldY = gridSizeY;
     gridSizeX = document.getElementById('gridRows').value;
     gridSizeY = document.getElementById('gridCols').value;
+    if(mapTiles){ // in case the map tiles already exist and the grid is being resized then I need to move the existing tiles so that they stay in the middle of the grid
+        let offsetX = tileSize * (gridSizeX - oldX) / 2;
+        let offsetY = tileSize * (gridSizeY - oldY) / 2;
+        mapTiles.forEach(tile => {
+            tile.x += offsetX;
+            tile.y += offsetY;
+        });
+    }
     for (let i = 0; i < gridSizeX; i++) {
         for (let j = 0; j < gridSizeY; j++) {
-            mapTiles.push(new MapTile(i * tileSize, j * tileSize, tileSize));
+            if(mapTiles.find(t => Math.round(t.x / tileSize) === i && Math.round(t.y / tileSize) === j) === undefined){ // making sure that new tiles are only created if there isnt one already
+                mapTiles.push(new MapTile(i * tileSize, j * tileSize, tileSize));
+            }
+        }
+    }
+    for (let i = mapTiles.length - 1; i >= 0; i--) { // removing tiles that are outside the new grid
+        let tile = mapTiles[i];
+        if(tile.x < 0 || tile.y < 0 || Math.round(tile.x / tileSize) >= gridSizeX || Math.round(tile.y / tileSize) >= gridSizeY){ // all of the tile.x and tile.y have to use Math.round otherwise they would never match because of floating point precision
+            mapTiles.splice(i, 1);
         }
     }
 }
@@ -213,6 +310,10 @@ function exportMap(){ // function for exporting the map
     let name = document.getElementById('exportName').value;
     if(name === ''){
         alert("Please enter a valid file name");
+        return;
+    }
+    if(name.length > 17){
+        alert("File name cannot exceed 17 characters");
         return;
     }
     if(mapTiles.length === 0){
@@ -242,6 +343,16 @@ function exportMap(){ // function for exporting the map
         let maps = localStorage.getItem('maps');
         if(maps){
             maps = JSON.parse(maps);
+            while(maps.find(m => m.name === name)){
+                if(name.includes("(")){
+                    name = name.replace(/\(\d+\)$/, match => {
+                        let num = parseInt(match.slice(1, -1));
+                        return `(${num + 1})`;
+                    });
+                }else{
+                    name += " (2)";
+                }
+            }
             maps.push(exportData);
             localStorage.setItem('maps', JSON.stringify(maps));
         }else{
@@ -285,12 +396,15 @@ function toggleMenuElement(elementId) { // function for toggling the visibility 
 
 function stopSelection(event) { // function that is called when the user has finished selecting tiles
     if(event.button === 0 || event.touches){ // making sure that the left mouse button or touch was released
+        let shiftKeyActive;
         if(!event.touches){
             window.removeEventListener('mousemove', selectionGrid);
             window.removeEventListener('mouseup', stopSelection);
+            shiftKeyActive = event.shiftKey;
         }else{
             window.removeEventListener('touchmove', selectionGrid);
             window.removeEventListener('touchend', stopSelection);
+            shiftKeyActive = !add;
         }
         // flipping the selection in case the user selected from right to left
         if (selectionGridInformation.x1 > selectionGridInformation.x2) {
@@ -303,7 +417,6 @@ function stopSelection(event) { // function that is called when the user has fin
             selectionGridInformation.y1 = selectionGridInformation.y2;
             selectionGridInformation.y2 = temp;
         }
-        let shiftKeyActive = event.shiftKey;
         mapTiles.forEach(tile => {
             if (tile.contains(selectionGridInformation)) {
                 if(shiftKeyActive && selectedTiles.includes(tile) && !zoneSelected){
@@ -346,7 +459,7 @@ canvas.addEventListener("contextmenu", (event) => {
 // right click to deselect all tiles, left click is for selection, panning etc.
 window.addEventListener('mousedown', (event) => {
     if (event.button === 0 && event.target.closest('#drawingArea')) {
-        leftMousePressedOnCanvas(event);
+        pressedOnCanvas(event);
     }else if (event.button === 2) {
         if(event.shiftKey) {
             selectedType = { name: "Nothing" };
@@ -357,41 +470,243 @@ window.addEventListener('mousedown', (event) => {
 });
 window.addEventListener('touchstart', (event) => { // the same as mousedown but for mobiles
     if (event.target.closest('#drawingArea')) {
-        leftMousePressedOnCanvas(event);
+        event.preventDefault();
+        pressedOnCanvas(event);
     }
-});
+}, { passive: false });
 
 function selectionGrid(event) { // function for updating the selection grid information based on the mouse position
-    const canvasRect = canvas.getBoundingClientRect();
     let mx,my;
     if(event.type.startsWith("touch")){
-        mx = event.touches[0].clientX - canvasRect.left;
-        my = event.touches[0].clientY - canvasRect.top;
+        mx = event.touches[0].pageX;
+        my = event.touches[0].pageY;
     }else{
-        mx = mouseX;
-        my = mouseY;
+        mx = event.pageX;
+        my = event.pageY;
     }
 
     selectionGridInformation.x2 = (mx - width/2 - offsetX)/zoom + (tileSize*gridSizeX)/2;
     selectionGridInformation.y2 = (my - height/2 - offsetY)/zoom + (tileSize*gridSizeY)/2;
 }
 
-function leftMousePressedOnCanvas(event) {
+function scrollToMenu() {
+    // scroll to menu
+    window.scrollTo({
+        top: document.getElementById("menu").offsetTop,
+        behavior: "smooth"
+    });
+}
+
+function loadMap(map){ // function for loading a saved map into the editor
+    // clearing the current map
+    ResetCanvas();
+
+    // setting the new map properties
+    gridSizeX = map.gridSizeX;
+    gridSizeY = map.gridSizeY;
+    document.getElementById('gridRows').value = gridSizeX;
+    document.getElementById('gridCols').value = gridSizeY;
+
+    // loading the tiles
+    for (let i = 0; i < gridSizeX; i++) {
+        for (let j = 0; j < gridSizeY; j++) {
+            mapTiles.push(new MapTile(i * tileSize, j * tileSize, tileSize));
+            mapTiles[mapTiles.length - 1].type = map.tiles.find(t => t.x === i && t.y === j)?.type;
+            mapTiles[mapTiles.length - 1].zones = map.tiles.find(t => t.x === i && t.y === j)?.zones || [];
+        }
+    }
+    browserMapsModal.hide(); // hiding the selection modal
+}
+
+function deleteMap(map) { // function for deleting a saved map from the browser storage
+    let maps = localStorage.getItem("maps");
+    if (maps) {
+        maps = JSON.parse(maps);
+        maps = maps.filter(m => m.name !== map.name);
+        localStorage.setItem("maps", JSON.stringify(maps));
+        loadMapsIntoModal();
+    }
+}
+
+function loadMainMaps(){
+    document.getElementById("mainMapsModalList").innerHTML = "Loading...";
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+    fetch("/mainMaps", { signal: controller.signal })
+        .then(response => {
+            document.getElementById("mainMapsModalList").innerHTML = "";
+            clearTimeout(timeout);
+            if (!response.ok) {
+                throw new Error("Server response was not ok");
+            }
+            return response.json();
+        })
+        .then(maps => {
+            if(maps && maps.length > 0){
+                maps.forEach(map => {
+                    const div = document.createElement("div");
+                    div.className = "row pt-1";
+                    const mapName = document.createElement("span");
+                    mapName.textContent = map.name;
+                    mapName.className = "col";
+                    div.appendChild(mapName);
+                    const mapHeightWidth = document.createElement("span");
+                    mapHeightWidth.textContent = `${map.gridSizeX}x${map.gridSizeY}`;
+                    mapHeightWidth.className = "col";
+                    div.appendChild(mapHeightWidth);
+                    const button = document.createElement("button");
+                    button.textContent = "Load Map";
+                    button.onclick = () => {
+                        if(document.getElementById('mainMapsLocalStorage').checked){
+                            let name = map.name;
+                            if(document.getElementById('mainMapsName').value !== '' && document.getElementById('mainMapsName').value.length <= 17){
+                                name = document.getElementById('mainMapsName').value;
+                            }else if(document.getElementById('mainMapsName').value.length > 17){
+                                alert("Map name must be 17 characters or less.");
+                                return;
+                            }
+                            let maps = localStorage.getItem('maps');
+                            if(maps){
+                                maps = JSON.parse(maps);
+                                while(maps.find(m => m.name === name)){
+                                    if(name.includes("(")){
+                                        name = name.replace(/\(\d+\)$/, match => {
+                                            let num = parseInt(match.slice(1, -1));
+                                            return `(${num + 1})`;
+                                        });
+                                    }else{
+                                        name += " (2)";
+                                    }
+                                }
+                                maps.push({...map, name: name});
+                                localStorage.setItem('maps', JSON.stringify(maps));
+                            }else{
+                                localStorage.setItem('maps', JSON.stringify([map]));
+                            }
+                        }
+                        closeMainMapsLibraryModal();
+                        loadMap(map)
+                    };
+                    button.className = "col btn btn-primary";
+                    div.appendChild(button);
+                    document.getElementById("mainMapsModalList").appendChild(div);
+                });
+            }else{
+                const div = document.createElement("div");
+                div.className = "list-group-item";
+                div.textContent = "No main maps found on the server.";
+                document.getElementById("mainMapsModalList").appendChild(div);
+            }
+        }).catch(error => {
+            const msg = document.createElement("div");
+            msg.className = "list-group-item";
+            msg.textContent = `Error loading main maps (${error.message}).`;
+            document.getElementById("mainMapsModalList").appendChild(msg);
+        });
+}
+
+const exitModal = new bootstrap.Modal(document.getElementById('exitModal'));
+function exitToMainPageModal() { // function to exit to the main page, activated via the side menu button
+    exitModal.show();
+}
+
+const mainMapsLibraryModal = new bootstrap.Modal(document.getElementById('mainMapsLibraryModal'));
+function mainMapsLibraryModalShow() {
+    closeImportMapsModal();
+    loadMainMaps();
+    mainMapsLibraryModal.show();
+}
+
+function closeMainMapsLibraryModal() {
+    mainMapsLibraryModal.hide();
+}
+
+const importMapsM = new bootstrap.Modal(document.getElementById('importMapsModal'));
+function importMapsModal() {
+    importMapsM.show();
+}
+
+function closeImportMapsModal() {
+    importMapsM.hide();
+}
+
+const browserMapsModal = new bootstrap.Modal(document.getElementById('mapsModal'));
+function showBrowserMapsModal(){
+    loadMapsIntoModal();
+    browserMapsModal.show();
+}
+
+function closeExitModal() {
+    exitModal.hide();
+}
+
+function closeBrowserMapsModal() {
+    browserMapsModal.hide();
+}
+
+function loadMapsIntoModal(){
+    let maps = localStorage.getItem("maps");
+    document.getElementById("savedMapsList").innerHTML = ""; // clearing the list first
+    if(maps) {
+        maps = JSON.parse(maps);
+        maps.forEach(map => {
+            const div = document.createElement("div");
+            div.className = "row pt-1";
+            const mapName = document.createElement("span");
+            mapName.textContent = map.name;
+            mapName.className = "col";
+            div.appendChild(mapName);
+            const mapHeightWidth = document.createElement("span");
+            mapHeightWidth.textContent = `${map.gridSizeX}x${map.gridSizeY}`;
+            mapHeightWidth.className = "col";
+            div.appendChild(mapHeightWidth);
+            deleteButton = document.createElement("button");
+            deleteButton.textContent = "Delete Map";
+            deleteButton.onclick = () => deleteMap(map);
+            deleteButton.className = "col btn btn-danger me-2";
+            div.appendChild(deleteButton);
+            const button = document.createElement("button");
+            button.textContent = "Load Map";
+            button.onclick = () => loadMap(map);
+            button.className = "col btn btn-primary";
+            div.appendChild(button);
+            document.getElementById("savedMapsList").appendChild(div);
+        });
+    }else{
+        const div = document.createElement("div");
+        div.className = "list-group-item";
+        div.textContent = "No saved maps in browser.";
+        document.getElementById("savedMapsList").appendChild(div);
+    }
+}
+
+function changePage() {
+    window.location.href = "/";
+}
+
+function getRightOffset() { // function to get the right offset that is cause by the side menu, it is needed for the touchable screen buttons
+    if (window.innerWidth > 767) {
+        return document.getElementById('menu').offsetWidth;
+    }
+    return 0;
+}
+
+function pressedOnCanvas(event) {
     let buttonPressed = false; // this ensures that the selector cannot be activated while pressing one of the control buttons that appear on smaller screens
-    if(window.innerWidth <=768){ // handling the buttons that are on small screens on the canvas
+    if(isTouch){ // handling the buttons that are on screens that have touch
         let positionX;
         let positionY;
         if(event.touches){
             if(event.touches[1]){
-                positionX = event.touches[1].clientX;
-                positionY = event.touches[1].clientY;
+                positionX = event.touches[1].pageX;
+                positionY = event.touches[1].pageY;
             }else{
-                positionX = event.touches[0].clientX;
-                positionY = event.touches[0].clientY;
+                positionX = event.touches[0].pageX;
+                positionY = event.touches[0].pageY;
             }
         }else{
-            positionX = event.clientX;
-            positionY = event.clientY;
+            positionX = event.pageX;
+            positionY = event.pageY;
         }
         // handling zooming buttons
         if(positionX > 5 && positionX < tileSize*12/2 && positionY > window.innerHeight - tileSize*5 && positionY < window.innerHeight - tileSize*5 + tileSize*3){
@@ -412,25 +727,28 @@ function leftMousePressedOnCanvas(event) {
         }else if(positionX > 5 + tileSize*3 && positionX < 5+tileSize*3*2 && positionY > window.innerHeight - tileSize*11-2 + tileSize*3 && positionY < window.innerHeight - tileSize*11-2 + tileSize*3*2){ // handling panning down
             keysPressed['bS'] = true;
             buttonPressed = true;
-        }else if(positionX > window.innerWidth-tileSize*3*2 - 20 && positionX < window.innerWidth-20 && positionY > tileSize/2 && positionY < tileSize*3 + tileSize/2){ // handling the focus button
+        }else if(positionX > window.innerWidth - tileSize*4 - tileSize - getRightOffset() && positionX < window.innerWidth - tileSize - 2 - getRightOffset() && positionY > window.innerHeight - tileSize*11-2 && positionY < window.innerHeight - tileSize*11-2 + tileSize*3){ // handling the add/rem button
             buttonPressed = true;
-        }else if(positionX > window.innerWidth-tileSize*3 - 20 && positionX < window.innerWidth-20 && mouseY > window.innerHeight - tileSize*11-2 && mouseY < window.innerHeight-tileSize*11-2 + tileSize*3){ // handling the add/rem button
-            buttonPressed = true;
+            add = !add;
+        }else if(window.innerWidth < 768 && positionX > window.innerWidth - tileSize*12 - getRightOffset() && positionX < window.innerWidth - tileSize - 2 - getRightOffset() && positionY > window.innerHeight - tileSize*5 && positionY < window.innerHeight - tileSize*5 + tileSize*3){ // handling the scroll to menu button
+            scrollToMenu();
+        }else if(positionX > 5 && positionX < 5 + tileSize*3.5 && positionY > tileSize*11-2 && positionY < tileSize*11-2 + tileSize*5){ // handling the reseting type button
+            selectedType = {name: "Nothing"};
         }
     }
     if(currentTool === "Selector"&&!buttonPressed){ // this is the part that creates the selection box
         let mx, my;
         if(event.touches){
             if(event.touches[1]){
-                mx = event.touches[1].clientX;
-                my = event.touches[1].clientY;
+                mx = event.touches[1].pageX;
+                my = event.touches[1].pageY;
             }else{
-                mx = event.touches[0].clientX;
-                my = event.touches[0].clientY;
+                mx = event.touches[0].pageX;
+                my = event.touches[0].pageY;
             }
         }else{
-            mx = event.clientX;
-            my = event.clientY;
+            mx = event.pageX;
+            my = event.pageY;
         }
         selectionGridInformation.x1 = (mx - width/2 - offsetX)/zoom + (tileSize*gridSizeX)/2;
         selectionGridInformation.y1 = (my - height/2 - offsetY)/zoom + (tileSize*gridSizeY)/2;
@@ -468,13 +786,13 @@ function leftMousePressedOnCanvas(event) {
             window.addEventListener('touchend', endHandler);
         }
 } else if (currentTool === "Panning" && !buttonPressed) {
-    let startX = mouseX;
-    let startY = mouseY;
+    let startX = event.pageX;
+    let startY = event.pageY;
     function pan(event) {
-        offsetX += event.clientX - startX;
-            offsetY += event.clientY - startY;
-            startX = event.clientX;
-            startY = event.clientY;
+        offsetX += event.pageX - startX;
+        offsetY += event.pageY - startY;
+        startX = event.pageX;
+        startY = event.pageY;
         }
         function stopPan() {
             window.removeEventListener('mousemove', pan);
@@ -526,9 +844,10 @@ function drawInformation() { // function for drawing the information, for now on
     // displaying selected tile type
     const element = document.getElementById('drawingArea');
     text("Selected Type: " + selectedType.name, element.offsetWidth - textWidth("Selected Type: " + selectedType.name)-20, window.innerHeight - 20);
-    // if the screen is small then showing the buttons
-    if(window.innerWidth <= 768) {
+    // if the screen has touch
+    if(isTouch) {
         fill(255);
+        // zooming buttons
         rect(5, window.innerHeight - tileSize*5, tileSize*12, tileSize*3);
         fill(0, 0, 0);
         let fontSize = 20;
@@ -550,9 +869,13 @@ function drawInformation() { // function for drawing the information, for now on
         // down pan button
         rect(5+tileSize*3, window.innerHeight - tileSize*8-2, tileSize*3, tileSize*3);
         // change add/rem button
-        rect(window.innerWidth - tileSize*3 - 20, window.innerHeight - tileSize*11-2, tileSize*3, tileSize*3);
-        // change focus
-        rect(window.innerWidth - tileSize*6 - 20, tileSize/2, tileSize*6, tileSize*3);
+        rect(window.innerWidth - tileSize*4 - tileSize - getRightOffset(), window.innerHeight - tileSize*11-2, tileSize*4, tileSize*3);
+        // scroll to menu button
+        if(window.innerWidth < 768) {
+            rect(window.innerWidth - tileSize*12 - getRightOffset(), window.innerHeight - tileSize*5, tileSize*11-2, tileSize*3);
+        }
+        // reseting selected type button
+        rect(5, tileSize*11-2, tileSize*3.5, tileSize*5);
         // texts for the buttons
         fill(0);
         // panning texts
@@ -561,12 +884,11 @@ function drawInformation() { // function for drawing the information, for now on
         text("↑", 5 + tileSize*4.5, window.innerHeight - tileSize*14-2 + tileSize*3/2);
         text("↓", 5 + tileSize*4.5, window.innerHeight - tileSize*8-2 + tileSize*3/2);
         // control texts
-        text("Add", window.innerWidth - tileSize*3 - 20 + tileSize*3/2, window.innerHeight - tileSize*11-2 + tileSize*3/2);
-        text("Focus: on", window.innerWidth - tileSize*4, tileSize/2 + tileSize*3/2);
-
-        if(isTouch){ // just for testing
-            rect(0, 0, window.innerWidth, window.innerHeight);
+        text(add == true ? "Add" : "Rem", window.innerWidth - tileSize*3.5 - tileSize + tileSize*3/2 - getRightOffset(), window.innerHeight - tileSize*11-2 + tileSize*3/2);
+        if(window.innerWidth < 768) {
+            text("Scroll to Menu", window.innerWidth - tileSize*12 + tileSize*11/2 - getRightOffset(), window.innerHeight - tileSize*3.5);
         }
+        text("Reset\nType", 5 + tileSize*3.5/2, tileSize*11-2 + tileSize*5/2);
     }
 }
 
@@ -619,6 +941,7 @@ function setup(){ // called once by p5.js when the page loads
     canvas.parent('drawingArea');
     tileSize = document.getElementById('drawingArea').offsetWidth / 30;
     createGrid();
+    resizeEditor(); // has to be called once at the start otherwise the entire window is for no reason moved slightly to the right
 }
 
 

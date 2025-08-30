@@ -19,8 +19,17 @@ html, body {
 textarea {
     height: 35px;
 }
+.min-width-button {
+    min-width: 100px;
+}
+.scrollableModal {
+    overflow-y: auto;
+    overflow-x: hidden;
+    height: 50vh;
+}
 .scrollable {
     overflow-y: auto;
+    overflow-x: hidden;
     height: 100vh;
 }
 @media (max-width: 768px) {  /* on smaller screens scrolling is allowed */

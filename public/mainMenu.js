@@ -25,9 +25,7 @@ function randomizeUsername(){ // called when the user randomizes the username
     }).then(response => {
         if (response.ok) {
             response.text().then(t => {
-                //console.log(t);
                 result = t.slice(1, -1); // removing the quotes from the string
-                //console.log(document.getElementById("username"));
                 document.getElementById("username").value = result;
                 document.getElementById("usernameForLobbyCreation").value = result;
             });
@@ -83,7 +81,6 @@ function requestCreateLobby(){ // function for creating a lobby on the server
     }).then(response => {
         if (response.ok) {
             response.json().then(data => {
-                //console.log(data.string);
                 window.location.href = `/game/${lobbyID}?username=${encodeURIComponent(username)}&securityString=${data.string}`;
             });
         } else {
@@ -109,7 +106,6 @@ function joinLobby() {
     }).then(response => {
         if (response.ok) {
             response.json().then(data => {
-                //console.log(data);
                 window.location.href = `/game/${lobbyID}?username=${encodeURIComponent(username)}&securityString=${data.securityString}`;
             });
         } else {

@@ -2,6 +2,7 @@ const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
 const path = require('path');
+const fs = require('fs');
 
 const app = express();
 const server = http.createServer(app);
@@ -103,6 +104,27 @@ app.post('/join-lobby', (req, res) => { // this is called when a player wants to
 
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'mainMenu.html'));
+});
+
+function combineAllServerMaps(){
+    const files = fs.readdirSync(path.join(__dirname, 'sources/maps'));
+    const jsonFiles = files.filter(file => file.endsWith('.json'));
+
+    const data = [];
+    for (const file of jsonFiles) {
+        const filePath = path.join(__dirname, 'sources/maps', file);
+        const fileData = fs.readFileSync(filePath);
+        try {
+            const parsed = JSON.parse(fileData);
+            data.push(parsed);
+        } catch (error) {}
+    }
+    return data;
+}
+
+app.get('/mainMaps', (req, res) => {
+    const combinedMaps = combineAllServerMaps();
+    res.status(200).json(combinedMaps);
 });
 
 app.get('/game/:lobbyId', (req, res) => {
