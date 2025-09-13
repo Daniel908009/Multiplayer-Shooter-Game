@@ -3,7 +3,6 @@ const http = require('http');
 const WebSocket = require('ws');
 const path = require('path');
 const fs = require('fs');
-
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
@@ -11,11 +10,114 @@ const wss = new WebSocket.Server({ server });
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+function preloadMapData(mapData){ // this function will add items and such to the map
+    let items = [];
+    //console.log("here2");
+    const spawnChance = 2;
+    mapData.tiles.forEach(tile => {
+        //console.log("here3");
+        //console.log(tile.zones);
+        tile.zones.forEach(zone => { // later there will be more zones and this will be done dynamically
+            if(zone.name === "Weapons"){ // also for now all the weapons are the same
+                if(Math.random() * 100 < spawnChance){
+                    items.push({
+                        position: { x: tile.x + Math.random() * 0.8 + 0.1, y: tile.y + Math.random() * 0.8 + 0.1 },
+                        color: { r: 255, g: 0, b: 0 }
+                    });
+                }
+            }else if(zone.name === "Health"){
+                if(Math.random() * 100 < spawnChance){
+                    items.push({
+                        position: { x: tile.x + Math.random() * 0.8 + 0.1, y: tile.y + Math.random() * 0.8 + 0.1 },
+                        color: { r: 0, g: 255, b: 0 }
+                    });
+                }
+            }
+        });
+    });
+    mapData.items = items;
+    return mapData;
+}
+
+function findNearestItem(playerPosition, items){ // finds the nearest item to the player
+    let nearestItem = null;
+    let nearestDistance = Infinity;
+    items.forEach(item => {
+        const distance = calcDistance(playerPosition, item.position);
+        if (distance < nearestDistance) {
+            nearestDistance = distance;
+            nearestItem = item;
+        }
+    });
+    return nearestItem;
+}
+
+function validateMapData(mapData){
+    // checking if mapData is an object
+    if (typeof mapData !== 'object' || mapData === null) {
+        return false;
+    }
+
+    // checking for required properties
+    const requiredProperties = ['name', 'gridSizeX', 'gridSizeY', 'tiles'];
+    for (const prop of requiredProperties) {
+        if (!mapData.hasOwnProperty(prop)) {
+            return false;
+        }
+    }
+
+    // checking if tiles is an array
+    if (!Array.isArray(mapData.tiles)) {
+        return false;
+    }
+
+    return true;
+}
+
+function calcDistance(pos1, pos2) {
+    return Math.hypot(pos1.x - pos2.x, pos1.y - pos2.y);
+}
+
+let test = true;
+function getNearbyTilesAndOtherInfo(player, map, allPlayers){ // function that will return the map tiles that are near enough to the player, this function is here to prevent cheating by the player (if the entire map would be sent then the player could use it to gain an unfair advantage)
+    let nearbyTilesAndInfo = {tiles: [], gridSizeX: map.gridSizeX, gridSizeY: map.gridSizeY, nearbyPlayers: [], items: []};
+    const viewDistance = 17; // this is the number that limits which tiles can be seen by the player
+    //console.log("Player position:", playerX, playerY);
+    test = true;
+    map.tiles.forEach(tile => {
+        //console.log(tile.x, tile.y);
+        if (calcDistance(tile, player.position) <= viewDistance && test) {
+            nearbyTilesAndInfo.tiles.push(tile);
+            //console.log("Player position:", player.position.x, player.position.y);
+            //console.log("Tile added:", tile.x, tile.y);
+            //console.log("Distance:", calcDistance(tile, player.position));
+            //test = false;
+        }
+        
+    });
+    allPlayers.forEach(otherPlayer => {
+        if (otherPlayer.ws !== player.ws) {
+            const distance = calcDistance(otherPlayer.position, player.position);
+            if (distance <= viewDistance) {
+                nearbyTilesAndInfo.nearbyPlayers.push(otherPlayer.position);
+            }
+        }
+    });
+    //console.log(map.items)
+    map.items.forEach(item => {
+        //console.log(item.x)
+        if (calcDistance(item.position, player.position) <= viewDistance) {
+            nearbyTilesAndInfo.items.push(item);
+        }
+    });
+    return nearbyTilesAndInfo;
+}
+
 const lobbies = {}; // later I will use a database
 const mapCreators = {}; // the same as lobbies but this one ensures that no one else can join the map creator tab apart from the creator
 
 app.post('/create-lobby', (req, res) => {
-    const {lobbyId, public, password, username, maxPlayers} = req.body;
+    const {lobbyId, public, password, username} = req.body;
     // validating the lobby ID, password and username
     if (!lobbyId || lobbyId.length < 5) {
         return res.status(400).json("Lobby ID must be at least 5 characters long");
@@ -37,22 +139,19 @@ app.post('/create-lobby', (req, res) => {
         players: [],
         joiningID: 0, // this will be used to assign unique IDs to players
         hasStarted: false, // if the game has started then no more players can join
-        isOpen: true, // if the lobby is open for joining
         isPublic: public, // if the lobby is public or private
         password: password, // used as an extra security measure for private lobbies
-        maxPlayers: maxPlayers, // maximum number of players that will be allowed to join
         bullets: [], // this will hold all the bullet objects
         securityString: randomString, // this will be used to ensure that only real players can join the lobby, basically it should prevent someone from just copy pasting the https address into a new window
+        map: null
     };
     res.status(200).send({message: "Lobby created successfully", string: randomString}); // sending the random string to the client so that it can be used to join the lobby
 });
 
 app.get('/get-public-lobbies', (req, res) => { // this is called when the client wants to get all the public lobbies
-    const responseLobbies = Object.keys(lobbies).filter(lobbyId => lobbies[lobbyId].isPublic && lobbies[lobbyId].isOpen).map(lobbyId => ({
+    const responseLobbies = Object.keys(lobbies).filter(lobbyId => lobbies[lobbyId].isPublic && lobbies[lobbyId].players.length < 100).map(lobbyId => ({
         id: lobbyId,
-        players: lobbies[lobbyId].players.length,
-        maxPlayers: lobbies[lobbyId].maxPlayers,
-        isOpen: lobbies[lobbyId].isOpen,
+        players: lobbies[lobbyId].players.length
     }));
     if (responseLobbies.length === 0) {
         return res.status(200).json({ message: "No public lobbies are currently available" });
@@ -81,7 +180,7 @@ app.post('/join-lobby', (req, res) => { // this is called when a player wants to
     }
     if (lobbies[lobbyId].hasStarted) {
         return res.status(400).json("Game has already started, cannot join");
-    }else if (!lobbies[lobbyId].isOpen) {
+    }else if (!lobbies[lobbyId].players || lobbies[lobbyId].players.length >= 100) {
         return res.status(400).json("Lobby is full or not open for joining");
     }
     if (lobbies[lobbyId].isPublic === false && password !== lobbies[lobbyId].password){
@@ -129,14 +228,9 @@ app.get('/mainMaps', (req, res) => {
 
 app.get('/game/:lobbyId', (req, res) => {
     const lobbyId = req.params.lobbyId;
-    const securityString = req.query.securityString;
     if (!lobbies[lobbyId]) {
         return res.status(404).send("Lobby not found");
     }
-    if (lobbies[lobbyId].securityString !== securityString || lobbies[lobbyId].securityString == undefined) {
-        return res.status(403).send("Invalid security string");
-    }
-    lobbies[lobbyId].securityString = undefined; // clearing the security string so that it cannot be used again
     res.sendFile(path.join(__dirname, 'public', 'game.html'));
 });
 
@@ -171,11 +265,16 @@ wss.on('connection', (ws) => {
         const data = JSON.parse(message);
         if (data.action === 'join') { // this is called when a new player joins a lobby, it sets up all the important info for the player
             // telling the player all the important information
-            const { lobbyId, playerName } = data;
+            const { lobbyId, playerName, securityString } = data;
             if( !lobbies[lobbyId]) {
-                ws.send(JSON.stringify({ action: 'error', message: 'Lobby not found' }));
+                ws.send(JSON.stringify({ action: 'error', message: 'Lobby not found', fatal: true }));
                 return;
             }
+            if (lobbies[lobbyId].securityString !== securityString || lobbies[lobbyId].securityString == undefined) {
+                ws.send(JSON.stringify({ action: 'error', message: 'Invalid security string', fatal: true }));
+                return;
+            }
+            lobbies[lobbyId].securityString = undefined; // setting the security string to undefined so that no one else can join with the same string
             ws.lobbyId = lobbyId; // storing the lobby ID in the WebSocket object, its easier to do some things with it later
             let uniqueID = lobbies[lobbyId].joiningID;
             let isMain = false;
@@ -185,14 +284,17 @@ wss.on('connection', (ws) => {
                 ready = true
             }
             // giving the player a random color from the color list
-            const colors = [{r: 255, g: 0, b: 0}, {r: 0, g: 255, b: 0}, {r: 0, g: 0, b: 255}, {r: 255, g: 255, b: 0}, {r: 255, g: 165, b: 0}];
             let color;
             do{
-                color = colors[Math.floor(Math.random() * colors.length)];
+                color = {r: Math.floor(Math.random() * 256), g: Math.floor(Math.random() * 256), b: Math.floor(Math.random() * 256)};
             }while (lobbies[lobbyId].players.some(player => player.color === color)); // ensuring that the color is unique in the lobby
             lobbies[lobbyId].joiningID += 1; // incrementing the unique ID for the next player
             // adding the player to the lobby and giving him info
-            lobbies[lobbyId].players.push({"name": playerName, "id": uniqueID, "isMain": isMain, "ws": ws, "position": {x: 0, y: 0, angle: 0}, "mousePos":{x:0, y:0}, "ready": ready,"color":color, "numberOfWins": 0});
+            lobbies[lobbyId].players.push({"name": playerName, "id": uniqueID, 
+                "isMain": isMain, "ws": ws, 
+                "position": {x: 0, y: 0, angle: 0}, lastMove: Date.now(), 
+                lastMouseMove: Date.now(), "ready": ready,"color":color, 
+                interactCooldown: 0, health: 100, inventory: [null, null, null, null, null], selectedItemSlot: 0});
             ws.send(JSON.stringify({
                 action: 'joined',
                 isMain: isMain,
@@ -200,7 +302,6 @@ wss.on('connection', (ws) => {
                 color: color,
                 lobbyId: lobbyId,
                 lobbyPassword: lobbies[lobbyId].password || null,
-                maxPlayers: lobbies[lobbyId].maxPlayers,
                 isPublic: lobbies[lobbyId].isPublic,
             }));
             lobbies[lobbyId].players.forEach(player => {
@@ -220,21 +321,12 @@ wss.on('connection', (ws) => {
                     }))
                 }));
             })
-            // if the lobby is full then marking it as not open for joining
-            if (lobbies[lobbyId].players.length >= lobbies[lobbyId].maxPlayers) {
-                lobbies[lobbyId].isOpen = false;
-                // sending the updated lobby status to all players in the lobby
-                lobbies[lobbyId].players.forEach(player => {
-                    player.ws.send(JSON.stringify({action:"statusChange", isOpen: false}));
-                });
-                console.log(`Lobby ${lobbyId} is now full`);
-            }
         }else if (data.action === "startGame"){ // called when someone requests to start the game
             // checking if the player that requested the game start is the main player
             const lobbyId = ws.lobbyId;
             const player = lobbies[lobbyId].players.find(player => player.ws === ws);
             if (!player || !player.isMain) {
-                ws.send(JSON.stringify({ action: 'error', message: 'Only the main player can start the game.' }));
+                ws.send(JSON.stringify({ action: 'error', message: 'Only the main player can start the game.', fatal: false }));
             }else{
                 let allReady = true
                 lobbies[lobbyId].players.forEach(player => {
@@ -242,15 +334,24 @@ wss.on('connection', (ws) => {
                         allReady = false;
                     }
                 });
-                if (allReady) {
+                if (allReady && lobbies[lobbyId].map !== null) {
                     // marking the game as started
                     lobbies[lobbyId].hasStarted = true;
                     // sending the game started message to all players in the lobby
                     lobbies[lobbyId].players.forEach(player => {
-                        player.ws.send(JSON.stringify({ action: 'gameStarted', isMain: player.isMain })); // isMain has to be sent because of map requesting that is done later
+                        player.ws.send(JSON.stringify({ action: 'gameStarted'}));
                     });
+                    // starting the game loop sending of the map
+                    lobbies[lobbyId].mapInterval = setInterval(() => {
+                        lobbies[lobbyId].players.forEach(player => {
+                            //console.log(getNearbyTiles(player, lobbies[lobbyId].map));
+                            player.ws.send(JSON.stringify({ action: 'mapData', mapData: getNearbyTilesAndOtherInfo(player, lobbies[lobbyId].map, lobbies[lobbyId].players) }));
+                        });
+                    }, 1000 / 30); // 30 times a second
+                }else if(!allReady){
+                    ws.send(JSON.stringify({ action: 'error', message: 'Not all players are ready.' , fatal: false }));
                 }else{
-                    ws.send(JSON.stringify({ action: 'error', message: 'Not all players are ready.' }));
+                    ws.send(JSON.stringify({ action: 'error', message: 'No map has been selected yet.' , fatal: false }));
                 }
             }
         }else if (data.action === "readyUPchange"){ // called when a player readies up or unreadies
@@ -283,7 +384,7 @@ wss.on('connection', (ws) => {
             const lobbyId = ws.lobbyId;
             const player = lobbies[lobbyId].players.find(player => player.ws === ws);
             if (!player || !player.isMain) {
-                ws.send(JSON.stringify({ action: 'error', message: 'Only the main player can change the lobby visibility.' }));
+                ws.send(JSON.stringify({ action: 'error', message: 'Only the main player can change the lobby visibility.', fatal: false }));
                 return;
             }
             const visibility = data.visibility; // true for public, false for private
@@ -291,68 +392,83 @@ wss.on('connection', (ws) => {
             lobbies[lobbyId].players.forEach(p => {
                 p.ws.send(JSON.stringify({action:"visibilityChange", isPublic: visibility}));
             });
-        }else if(data.action === 'requestMap'){ // sends the map 30 times a second to all the players, later it will be optimalized
-            const lobbyId = ws.lobbyId;
-            // this is a test map, later it will be done with json files
-            // all of the positional values will be multiplied by the scale factor of the clients browser
-            
-            // loading the map from the file will be done later
-
-            // setting the locations of the players to the spawn points
-            lobbies[lobbyId].players.forEach((player, index) => {
-                player.position.x = map.spawnPoints[index % map.spawnPoints.length].x
-                player.position.y = map.spawnPoints[index % map.spawnPoints.length].y
-            });
-            // sending the map 30 times a second to all players in the lobby
-            lobbies[lobbyId].mapInterval = setInterval(() => {
-                // sending all the important info
-                lobbies[lobbyId].players.forEach(player => {
-                    player.ws.send(JSON.stringify({
-                        action: 'mapData',
-                        mapData: map,
-                        players: lobbies[lobbyId].players.map(p => ({
-                            id: p.id,
-                            name: p.name,
-                            position: p.position,
-                            isMain: p.isMain,
-                            color: p.color,
-                        }))
-                    }));
-                });
-            }, 1000 / 30);
-        }else if (data.action === 'move'){ // is called when a player requests to move
+        }else if (data.action === 'keys'){ // is called when a player requests to move or does an action
             const lobbyId = ws.lobbyId;
             const player = lobbies[lobbyId].players.find(player => player.ws === ws);
-            // moving the player based on the keys pressed
-            if (data.keys.includes('w')) {
-                player.position.y -= 0.05; // moving up
+            if (lobbies[lobbyId].hasStarted === true) {
+                // moving the player based on the keys pressed
+                if(player.lastMove + 10 < Date.now()){ // limiting the movement updates to 100 per second
+                    player.lastMove = Date.now();
+                    let speedMultiplier = 1;
+                    if(data.keys.length > 1) speedMultiplier = 0.7;
+                    if(data.keys.includes('a')) player.position.x -= 0.1 * speedMultiplier;
+                    if(data.keys.includes('d')) player.position.x += 0.1 * speedMultiplier;
+                    if(data.keys.includes('s')) player.position.y += 0.1 * speedMultiplier;
+                    if(data.keys.includes('w')) player.position.y -= 0.1 * speedMultiplier;
+                    player.position.x = Math.round(player.position.x * 100) / 100;
+                    player.position.y = Math.round(player.position.y * 100) / 100;
+                    //console.log(player.position);
+                    player.ws.send(JSON.stringify({ action: 'positionUpdate', position: player.position }));
+                }
             }
-            if (data.keys.includes('s')) {
-                player.position.y += 0.05; // moving down
+        }else if(data.action === 'interact'){ // called when the player interacts with an item
+            const lobbyId = ws.lobbyId;
+            const player = lobbies[lobbyId].players.find(player => player.ws === ws);
+            if (player && lobbies[lobbyId].hasStarted === true && player.interactCooldown + 500 < Date.now()) {
+                let nearestItem = findNearestItem(player.position, lobbies[lobbyId].map.items);
+                if (nearestItem && calcDistance(player.position, nearestItem.position) < 1.5) {
+                    // removing the item from the map
+                    lobbies[lobbyId].map.items = lobbies[lobbyId].map.items.filter(item => item !== nearestItem);
+                    player.interactCooldown = Date.now();
+                    // adding the item to the player's inventory if there is space
+                    let added = false;
+                    // first trying to add the item to the selected slot
+                    if (player.inventory[player.selectedItemSlot] === null) {
+                        player.inventory[player.selectedItemSlot] = nearestItem;
+                        added = true;
+                    }else{
+                        // then trying to add the item to any other slot
+                        for (let i = 0; i < player.inventory.length; i++) {
+                            if (player.inventory[i] === null) {
+                                player.inventory[i] = nearestItem;
+                                added = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (added) {
+                        player.ws.send(JSON.stringify({ action: 'inventoryUpdate', inventory: player.inventory }));
+                    }
+                }
             }
-            if (data.keys.includes('a')) {
-                player.position.x -= 0.05; // moving left
+        }else if(data.action === 'loadMap'){ // called when the main player selects a map
+            const lobbyId = ws.lobbyId;
+            const player = lobbies[lobbyId].players.find(player => player.ws === ws);
+            if (player && player.isMain) {
+                const isValid = validateMapData(data.mapData);
+                if(isValid){
+                    const finishedMapData = preloadMapData(data.mapData);
+                    lobbies[lobbyId].map = finishedMapData;
+                    //console.log(lobbies[lobbyId].map.items);
+                    lobbies[lobbyId].players.forEach(p => {
+                        p.ws.send(JSON.stringify({ action: 'mapSelected', name: finishedMapData.name }));
+                    });
+                }else{
+                    ws.send(JSON.stringify({ action: 'error', message: 'Invalid map data!' }));
+                }
+            }else{
+                ws.send(JSON.stringify({ action: 'error', message: 'You are not the main player!' }));
             }
-            if (data.keys.includes('d')) {
-                player.position.x += 0.05; // moving right
-            }
-            player.position.x = Math.round(player.position.x*100)/100
-            player.position.y = Math.round(player.position.y*100)/100
-            // calculating the angle based on the new position
-            const tileSize = data.tileSize;
-            let x = player.position.x * tileSize + tileSize / 2
-            let y = plmapCreatorsayer.position.y * tileSize + tileSize / 2
-            player.position.angle = Math.atan2(player.mousePos.y - y, player.mousePos.x - x);
         }else if (data.action === 'mouseMove'){
-            // getting the players position and calculating the angle to the mouse position
             const lobbyId = ws.lobbyId;
             const player = lobbies[lobbyId].players.find(player => player.ws === ws);
-            player.mousePos.x = data.x;
-            player.mousePos.y = data.y;
-            const tileSize = data.tileSize;
-            let x = player.position.x * tileSize + tileSize / 2
-            let y = player.position.y * tileSize + tileSize / 2
-            player.position.angle = Math.atan2(player.mousePos.y - y, player.mousePos.x - x);
+            if(lobbies[lobbyId].hasStarted === true){
+                if (player && player.lastMouseMove + 10 < Date.now()) { // limiting the mouse move updates to 100 per second
+                    player.position.angle = Math.atan2(data.y - data.center.y, data.x - data.center.x);
+                    player.ws.send(JSON.stringify({ action: 'positionUpdate', position: player.position }));
+                    player.lastMouseMove = Date.now();
+                }
+            }
         }else if (data.action === 'click'){
             // shooting here
         }else if (data.action === "joinCreator"){ // when someone opens a creator window tab
@@ -365,6 +481,35 @@ wss.on('connection', (ws) => {
                 ws.send(JSON.stringify({ action: 'destroyPage'})); // specificaly on mobile I was able to load the page without the server resending me the files. 
                 // Basically I could open a preview that was saved on my phone and the javascript called the server for join request but the creator didnt exist anymore so it caused an error and the server crashed
             }
+        }else if (data.action === "verifyMap"){ // decides whether a map is valid or not
+            const {mapData} = data;
+            let isInLobby = false;
+            let isMain = false;
+            for (const lobby of Object.values(lobbies)) {
+                if (lobby.players.forEach(player => {
+                    if (player.ws === ws) {
+                        isInLobby = true;
+                        isMain = player.isMain;
+                    }
+                })) {
+                    break;
+                }
+            }
+            const isValid = validateMapData(mapData); // performing the validation
+            if (isValid && !isInLobby || isValid && isMain) {
+                ws.send(JSON.stringify({ action: 'mapVerificationResult', valid: true, mapData: mapData}));
+            } else if(isValid && isInLobby && !isMain){
+                ws.send(JSON.stringify({ action: 'mapVerificationResult', valid: false, errorMessage: 'You are not the main player!' }));
+            } else if(!isValid && isInLobby && isMain || !isValid && !isInLobby && !isMain){
+                ws.send(JSON.stringify({ action: 'mapVerificationResult', valid: false, errorMessage: 'Invalid map data!' }));
+            }
+        }else if (data.action === "selectItemSlot"){ // called when the player selects an item slot
+            const lobbyId = ws.lobbyId;
+            const player = lobbies[lobbyId].players.find(player => player.ws === ws);
+            if (player && lobbies[lobbyId].hasStarted === true && data.selectedItemSlot >= 0 && data.selectedItemSlot < 5) {
+                player.selectedItemSlot = data.selectedItemSlot;
+            }
+            player.ws.send(JSON.stringify({ action: 'itemSlotChange', selectedItemSlot: player.selectedItemSlot }));
         }
     });
 
@@ -427,14 +572,6 @@ wss.on('connection', (ws) => {
                     }
                 }));
             });
-            // opening the lobby for joining if there are less players than the maximum
-            if (lobbies[lobbyId].players.length < lobbies[lobbyId].maxPlayers) {
-                lobbies[lobbyId].isOpen = true;
-                // sending the updated lobby status to all players in the lobby
-                lobbies[lobbyId].players.forEach(player => {
-                    player.ws.send(JSON.stringify({action:"statusChange", isOpen: true}));
-                });
-            }
         }else{ // if the last player left the lobby
             // stopping the interval that sends the map data
             if (lobbies[lobbyId] && lobbies[lobbyId].mapInterval) {

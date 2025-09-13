@@ -15,11 +15,32 @@ html, body {
 .gap{
     gap: 10px;
 }
+.min-width-button {
+    min-width: 100px;
+}
+.scrollableModal {
+    overflow-y: auto;
+    overflow-x: hidden;
+    height: 50vh;
+}
+.scrollablePlayerList {
+    max-height: 50vh;
+    overflow-y: auto;
+}
+.scrollableMapsList {
+    max-height: 50vh;
+    overflow-y: auto;
+}
 textarea {
     height: 30px;
 }
 @media (max-width: 768px) {
     .hide-border-sm {
+        border-left: none !important;
+    }
+}
+@media (max-width: 992px) {
+    .hide-border-md {
         border-left: none !important;
     }
 }

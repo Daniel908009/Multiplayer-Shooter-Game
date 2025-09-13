@@ -25,61 +25,103 @@
     </head>
 
     <body>
-        <div class="modal fade" id="lobbyModal" tabindex="-1" aria-labelledby="lobbyModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-            <div class="modal-dialog">
+        <div class="modal fade" id="selectMapsModal" tabindex="-1" aria-labelledby="selectMapsModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+            <div class="modal-dialog modal-xl">
                 <div class="modal-content">
-                <div class="modal-header">
-                    <h1 class="modal-title fs-5 fw-bold" id="lobbyModalLabel">Lobby Waiting Room</h1>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="row">
-                        <div class="col-12 col-md-6">
-                            <div class="player-list">
-                                <p class="fs-5 fw-bold">Players in Lobby:</p>
-                                <ul id="playerList" class="list-group">
-                                </ul>
-                            </div>
-                        </div>
-                        <hr class="d-block d-md-none my-2 pb-3">
-                        <div class="col-12 col-md-6 border-start gap d-flex flex-column hide-border-sm">
-                            <p class="fs-5 fw-bold">Lobby Menu (Host Only):</p>
-                            <div class="locked-row-container gap">
-                                <p class="pt-3">Status: </p>
-                                <div class="btn-group" role="group" aria-label="Basic radio toggle button group">
-                                    <input type="radio" class="btn-check" name="btnradio" id="btnradio" autocomplete="off" disabled>
-                                    <label class="btn btn-outline-primary" for="btnradio">Open</label>
-
-                                    <input type="radio" class="btn-check" name="btnradio1" id="btnradio1" autocomplete="off" disabled>
-                                    <label class="btn btn-outline-primary" for="btnradio1">Close</label>
+                    <div class="modal-header">
+                        <h1 class="modal-title fs-5">Maps selection</h1>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-12 col-lg-4">
+                                <h3 class="text-center">Local Storage</h3>
+                                <div class="scrollableMapsList">
+                                    <list class="list-group" id="localStorageMapsList"></list>
                                 </div>
                             </div>
-                            <div class="locked-row-container gap">
-                                <p class="pt-3">Visibility: </p>
-                                <div class="btn-group" role="group" aria-label="toggle button group2">
-                                    <input type="radio" class="btn-check" name="btnradio2" id="btnradio2" autocomplete="off" onclick="requestVisibilityChange(true)">
-                                    <label class="btn btn-outline-primary" for="btnradio2">Public</label>
-
-                                    <input type="radio" class="btn-check" name="btnradio3" id="btnradio3" autocomplete="off" onclick="requestVisibilityChange(false)">
-                                    <label class="btn btn-outline-primary" for="btnradio3">Private</label>
+                            <hr class="d-block d-lg-none my-2 pb-3">
+                            <div class="col-12 col-lg-4 border-start hide-border-md">
+                                <h3 class="text-center">Import (file)</h3>
+                                <input type="file" id="importJsonFileInput" class="form-control" accept=".json" />
+                                <div class="text-center mt-3">
+                                    <button type="button" class="btn btn-primary" onclick="importJson(`file`)">Import JSON File</button>
                                 </div>
                             </div>
-                            <button type="button" class="btn btn-success" onclick="requestGameStart()">Start Game (Host Only)</button>
+                            <hr class="d-block d-lg-none my-2 pb-3">
+                            <div class="col-12 col-lg-4 border-start hide-border-md">
+                                <h3 class="text-center">Import (text)</h3>
+                                <textarea id="importJsonTextArea" class="form-control" placeholder="Paste your JSON text here"></textarea>
+                                <div class="text-center mt-3">
+                                    <button type="button" class="btn btn-primary" onclick="importJson(`text`)">Import JSON Text</button>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                </div>
-                <div class="modal-footer justify-content-between">
-                    <div class="locked-row-container gap">
-                        <p class="pt-3">lobbyID: </p>
-                        <textarea name="" id="lobbyID" disabled></textarea>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-success min-width-button" onclick="closeSelectMapsModal()">Close</button>
                     </div>
-                    <button class="btn btn-secondary" onclick="copyLobbyID()">Copy Lobby ID</button>
-                    <div class="locked-row-container gap">
-                        <p class="pt-3">Password: </p>
-                        <textarea name="lobbyPassword" id="lobbyPassword" disabled></textarea>
-                    </div>
-                    <button class="btn btn-secondary" onclick="copyLobbyPassword()">Copy Password</button>
                 </div>
+            </div>
+        </div>
+        <div class="modal fade" id="lobbyModal" tabindex="-1" aria-labelledby="lobbyModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+            <div class="modal-dialog modal-xl">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h1 class="modal-title fs-5 fw-bold" id="lobbyModalLabel">Lobby Waiting Room</h1>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-12 col-md-6">
+                                <div class="player-list">
+                                    <p class="fs-5 fw-bold">Players in Lobby:</p>
+                                    <div class="scrollablePlayerList">
+                                        <ul id="playerList" class="list-group"></ul>
+                                    </div>
+                                </div>
+                            </div>
+                            <hr class="d-block d-md-none my-2 pb-3">
+                            <div class="col-12 col-md-6 border-start gap d-flex flex-column hide-border-sm">
+                                <p class="fs-5 fw-bold">Lobby Menu (Host Only):</p>
+                                <div class="locked-row-container gap">
+                                    <p class="pt-3" id="lobbyStatus">Players: 1/100</p>
+                                </div>
+                                <div class="locked-row-container gap">
+                                    <p class="pt-3">Visibility: </p>
+                                    <div class="btn-group" role="group" aria-label="toggle button group2">
+                                        <input type="radio" class="btn-check" name="btnradio2" id="btnradio2" autocomplete="off" onclick="requestVisibilityChange()">
+                                        <label class="btn btn-outline-primary" for="btnradio2">Public</label>
+
+                                        <input type="radio" class="btn-check" name="btnradio2" id="btnradio3" autocomplete="off" onclick="requestVisibilityChange()">
+                                        <label class="btn btn-outline-primary" for="btnradio3">Private</label>
+                                    </div>
+                                </div>
+                                <div class="locked-row-container gap">
+                                    <p class="pt-3">Map: </p>
+                                    <span id="currentMapName">No map selected</span>
+                                    <button type="button" class="btn btn-danger" onclick="openMapsSelectModal()">Select a Map</button>
+                                </div>
+                                <button type="button" class="btn btn-success" onclick="requestGameStart()">Start Game (Host Only)</button>
+                            </div>
+                        </div>
+                        <hr>
+                        <div class="row">
+                            <div class="col-12 col-md-6">
+                                <div class="d-flex align-items-center mb-2">
+                                    <label for="lobbyID" class="me-2 mb-0">ID:</label>
+                                    <input class="form-control" type="text" value="" id="lobbyID" disabled>
+                                </div>
+                                <button class="btn btn-secondary w-100" onclick="copyLobbyID()">Copy Lobby ID</button>
+                            </div>
+                            <hr class="d-block d-md-none my-2 pb-3">
+                            <div class="col-12 col-md-6 border-start d-flex flex-column hide-border-sm">
+                                <div class="d-flex align-items-center mb-2">
+                                    <label for="lobbyPassword" class="me-2 mb-0">Password:</label>
+                                    <input class="form-control" type="text" value="" id="lobbyPassword" disabled>
+                                </div>
+                                <button class="btn btn-secondary w-100" onclick="copyLobbyPassword()">Copy Password</button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

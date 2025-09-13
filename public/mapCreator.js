@@ -54,11 +54,21 @@ webSocket.addEventListener("message", (event) => {
     const data = JSON.parse(event.data);
     if (data.action === 'destroyPage') {
         window.location.href = '/?error=Map creator could not be opened because of a faulty join request. Please try again.';
+    }else if (data.action === 'mapVerificationResult') {
+        if (data.valid) {
+            processImportedData(data.mapData, data.mapData.checkboxValue, closeImportMapsModal);
+        } else {
+            alert(data.errorMessage);
+        }
     }
 });
 
 // every time the windows is resized the canvas needs to be resized as well
 window.addEventListener('resize', () => {
+    resizeEditor();
+});
+
+window.addEventListener('fullscreenchange', () => {
     resizeEditor();
 });
 
@@ -207,14 +217,9 @@ function speedToBase() { // function for resetting the speed to base
     document.getElementById('speedDisplay').innerText = "Speed: " + speed/10;
 }
 
-function processImportedData(jsonData, checkbox, closeModal, inputElement, nameBox) { // function for processing/checking imported JSON data
-    // checking that the map has everything
-    if (!jsonData || !jsonData.tiles || !Array.isArray(jsonData.tiles)) { // those are the most important checks, there is of course more to check but this is good enough for now
-        alert("Invalid map data!");
-        return;
-    }
+function processImportedData(jsonData, checkboxValue, closeModal) { // function for processing/checking imported JSON data
     // If everything is valid, then proceeding with importing
-    if (checkbox.checked) {
+    if (checkboxValue) {
         let maps = localStorage.getItem('maps');
         if (maps) {
             maps = JSON.parse(maps);
@@ -229,15 +234,19 @@ function processImportedData(jsonData, checkbox, closeModal, inputElement, nameB
             }
         });
         if (!allowedName) return;
+        delete jsonData.checkboxValue; // removing the checkbox value from the map
         maps.push(jsonData);
         localStorage.setItem('maps', JSON.stringify(maps));
     }
     // loading the map
     loadMap(jsonData);
     closeModal();
-    inputElement.value = '';
-    nameBox.value = '';
-    checkbox.checked = false;
+    document.getElementById('importJsonTextArea').value = '';
+    document.getElementById('textCheckbox').checked = false;
+    document.getElementById('importJsonFileInput').value = '';
+    document.getElementById('fileCheckbox').checked = false;
+    document.getElementById('fileImportName').value = '';
+    document.getElementById('copyPasteImportName').value = '';
 }
 
 function importJson(typeOfImport){ // function for importing JSON data from the import maps modal
@@ -252,12 +261,21 @@ function importJson(typeOfImport){ // function for importing JSON data from the 
         let nameBox = document.getElementById('fileImportName');
         let name = nameBox.value;
         const file = fileInput.files[0];
+        if(file.type !== 'application/json'){
+            alert('Please select a valid JSON file.');
+            return;
+        }
         const reader = new FileReader();
         reader.onload = (event) => {
-            jsonData = JSON.parse(event.target.result);
-            jsonData.name = name || jsonData.name;
-            processImportedData(jsonData, checkbox, closeImportMapsModal, fileInput, nameBox);
-        }
+            try {
+                jsonData = JSON.parse(event.target.result);
+                jsonData.name = name || jsonData.name;
+                jsonData.checkboxValue = checkbox.checked;
+                webSocket.send(JSON.stringify({ action: 'verifyMap', mapData: jsonData }));
+            } catch (error) {
+                alert('Error parsing JSON: ' + error.message);
+            }
+        };
         reader.readAsText(file);
     }else if(typeOfImport === 'text'){
         const textArea = document.getElementById('importJsonTextArea');
@@ -266,7 +284,8 @@ function importJson(typeOfImport){ // function for importing JSON data from the 
         let name = nameBox.value;
         jsonData = JSON.parse(textArea.value);
         jsonData.name = name || jsonData.name;
-        processImportedData(jsonData, checkbox, closeImportMapsModal, textArea, nameBox);
+        jsonData.checkboxValue = checkbox.checked;
+        webSocket.send(JSON.stringify({ action: 'verifyMap', mapData: jsonData }));
     }
 }
 

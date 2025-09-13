@@ -70,14 +70,13 @@ function requestCreateLobby(){ // function for creating a lobby on the server
     let lobbyID = document.getElementById("lobbyID").value.trim();
     let password = document.getElementById("lobbyPassword").value.trim();
     let public = document.getElementById("public").checked;
-    let maxPlayers = document.getElementById("maxPlayers").value
     // creating the lobby
     fetch('/create-lobby', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ lobbyId: lobbyID, password: password, public: public, maxPlayers: maxPlayers, username: username })
+        body: JSON.stringify({ lobbyId: lobbyID, password: password, public: public, username: username })
     }).then(response => {
         if (response.ok) {
             response.json().then(data => {
@@ -130,7 +129,6 @@ function requestPrivateLobbyJoin(){ // called when the user submits the join pri
 }
 
 function requestPublicLobbies(){ // requesting the lobbies from the server
-    console.log("Requesting public lobbies");
     fetch('/get-public-lobbies', {
         method: 'Get',
         headers: {
@@ -149,7 +147,7 @@ function requestPublicLobbies(){ // requesting the lobbies from the server
                             div.classList.add('locked-row-container', 'gap');
                             const p = document.createElement('p');
                             p.classList.add('pt-3');
-                            p.innerHTML = `<strong>Lobby ID:</strong> ${lobby.id} - <strong>Players:</strong> ${lobby.players}/${lobby.maxPlayers}`;
+                            p.innerHTML = `<strong>Lobby ID:</strong> ${lobby.id} - <strong>Players:</strong> ${lobby.players}/100`;
                             const button = document.createElement('button');
                             button.className = 'btn btn-primary';
                             button.textContent = 'Join';
