@@ -3,7 +3,7 @@ class MapTile{ // class for all the map tiles
         this.x = x;
         this.y = y;
         this.size = size;
-        this.type = {name: 'grass', color: [40, 150, 40]}; // later there will be a list of types
+        this.type = tileTypes["Grass"]; // default tile type
         this.zones = [];
     }
 
@@ -29,12 +29,12 @@ let selectedTiles = []; // contains the tiles that have been selected in the can
 let selectionGridInformation = {x1: null, y1: null, x2: null, y2: null}; // x1, y1 = start point, x2, y2 = end point
 let selectedType = {name: "Nothing"}; // currently selected tile/zone type
 let tileTypes = { // all the different tile types
-    "Grass": {name: "Grass", color: [40, 150, 40]},
-    "Sand": {name: "Sand", color: [194, 178, 128]},
-    "Water": {name: "Water", color: [0, 0, 255]},
-    "Wooden Wall": {name: "Wooden Wall", color: [139, 69, 19]},
-    "Wooden Floor": {name: "Wooden Floor", color: [160, 82, 45]},
-    "Gravel": {name: "Gravel", color: [128, 128, 128]}
+    "Grass": {name: "Grass", color: [40, 150, 40], speedModifier: 1.0, walkable: true},
+    "Sand": {name: "Sand", color: [194, 178, 128], speedModifier: 0.8, walkable: true},
+    "Water": {name: "Water", color: [0, 0, 255], speedModifier: 0.5, walkable: true},
+    "Wooden Wall": {name: "Wooden Wall", color: [139, 69, 19], speedModifier: 1.0, walkable: false},
+    "Wooden Floor": {name: "Wooden Floor", color: [160, 82, 45], speedModifier: 1.0, walkable: true},
+    "Gravel": {name: "Gravel", color: [128, 128, 128], speedModifier: 0.9, walkable: true}
 };
 let zoneTypes = { // all the different zone types
     "Weapons": {name: "Weapons", color: [255, 0, 0]},
@@ -348,7 +348,8 @@ function exportMap(){ // function for exporting the map
                 "x": tile.x / tileSize,
                 "y": tile.y / tileSize,
                 "type": tile.type,
-                "zones": tile.zones
+                "zones": tile.zones,
+                "walkable": tile.walkable
             };
         })
     }

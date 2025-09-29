@@ -93,8 +93,9 @@ function requestCreateLobby(){ // function for creating a lobby on the server
 }
 function joinLobby() {
     let username = document.getElementById("username").value.trim();
-    let lobbyID = document.getElementById("lobbyID").value.trim();
-    let password = document.getElementById("lobbyPassword").value.trim();
+    let lobbyID = document.getElementById("lobbyIdentifier").value.trim();
+    let password = document.getElementById("lobbyPassw").value.trim();
+    //console.log(password)
     // joining the lobby
     fetch('/join-lobby', {
         method: 'POST',

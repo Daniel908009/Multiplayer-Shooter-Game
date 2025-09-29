@@ -5,6 +5,15 @@ const lobbyModal = new bootstrap.Modal(modalElement);
 document.addEventListener('DOMContentLoaded', () => {
   lobbyModal.show();
 });
+// resizing doesnt work, DO THIS
+// resizing the canvas when the window is resized
+function windowResized() {
+    resizeCanvas(windowWidth, windowHeight);
+    tileSize = windowWidth > windowHeight ? windowHeight / 20 : windowWidth / 20; // setting the tile size based on the bigger dimension
+    //console.log(windowWidth, windowHeight, tileSize);
+}
+window.addEventListener('resize', windowResized);
+window.addEventListener('fullscreenchange', windowResized);
 
 // Global variables
 const socket = new WebSocket(`ws://${location.host}`);
@@ -13,8 +22,11 @@ let position = { x: 0, y: 0, angle: 0 };
 let tileSize; // this is the size of each tile of the map, it is changing based on the browser windows size
 let playerColor = { r: 255, g: 255, b: 255 };
 let playerHealth = 100;
+let playerStamina = 100;
 let selectedItemSlot = 0; // the currently selected item slot, it is from 0 to 4
 let inventory = [null, null, null, null, null]; // this will hold the items that the player has picked up
+let images = {}; // this will hold the images of items and other things
+let bulletImages = {}; // this will hold the images of bullets
 
 socket.addEventListener('open', () => {
     // sending the join action to the server
@@ -36,6 +48,7 @@ socket.addEventListener('message', (event) => {
             document.getElementById('btnradio3').checked = true;
         }
         playerColor = data.color;
+        document.getElementById('currentMapName').textContent = data.map ? data.map.name : "No map selected";
     } else if (data.action === 'newMain') { // happens when the main player leaves and a new main player is selected
         console.log('You are now the main player');
     }else if (data.action === 'error'){ // error handling
@@ -99,10 +112,17 @@ socket.addEventListener('message', (event) => {
         //console.log(position);
     }else if(data.action === "healthUpdate"){
         playerHealth = data.health;
+    }else if(data.action === "staminaUpdate"){
+        playerStamina = data.stamina;
     }else if(data.action === "itemSlotChange"){
         selectedItemSlot = data.selectedItemSlot;
     }else if(data.action === "inventoryUpdate"){
         inventory = data.inventory;
+    }else if (data.action === "playerDied"){
+        alert("You have died! There is no spectating or respawning so enjoy this alert."); // FIX THIS, add spectating
+    }else if (data.action === "gameOver"){
+        alert(data.winner ? `Game over! The winner is ${data.winner}` : "Game over! There is no winner.");
+        lobbyModal.show();
     }
 });
 
@@ -223,28 +243,33 @@ function copyLobbyID(){ // function to copy the lobby ID to the clipboard, it is
 let keysPressed = {}; // object to hold the keys that are currently pressed
 // starting the controls to request movement from the server
 document.addEventListener('keydown', (event) => {
-    keysPressed[event.key] = true;
+    let key = event.key.toLowerCase();
+    //console.log(key);
+    keysPressed[key] = true;
 });
 document.addEventListener('keyup', (event) => {
-    keysPressed[event.key] = false;
+    let key = event.key.toLowerCase();
+    keysPressed[key] = false;
 });
-// click is fire
-document.addEventListener('click', (event) => {
-    socket.send(JSON.stringify({ action: 'click', x: event.clientX, y: event.clientY }));
+// clicking the mouse to use the item in the selected slot
+document.addEventListener('mousedown', (event) => {
+    if(event.button !== 0) return;
+    socket.send(JSON.stringify({ action: 'leftClick', x: event.clientX, y: event.clientY }));
+});
+document.addEventListener('contextmenu', (event) => { // right click is for dropping the item currently in the selected slot
+    event.preventDefault();
+    socket.send(JSON.stringify({ action: 'dropItem', x: event.clientX, y: event.clientY, selectedItemSlot: selectedItemSlot }));
 });
 // sending the movements to the server
 setInterval(() => {
-    if (Object.keys(keysPressed).length > 0 && Object.values(keysPressed).includes(true)) {
-        let keys = [];
-        for (let key in keysPressed) {
-            if (keysPressed[key]) { // if the key is pressed
-                keys.push(key); // add the key to the array
-            }
-        }
-        if (keys) {
-            socket.send(JSON.stringify({ action: 'keys', keys: keys}));
+    let keys = [];
+    for (let key in keysPressed) {
+        if (keysPressed[key]) { // if the key is pressed
+            keys.push(key); // add the key to the array
         }
     }
+    if(WebSocket.OPEN !== socket.readyState) return; // if the socket is not open then do nothing
+    socket.send(JSON.stringify({ action: 'keys', keys: keys}));
 }, 1000 / 100);
 
 // sending the position of the mouse for aiming
@@ -266,31 +291,51 @@ document.addEventListener('keydown', (event) => {
     }
 });
 
-/*
-let zoomLevel = 1; // variable to hold the zoom level, all of this is just for testing
-document.addEventListener('wheel', (event) => { // event listener for zooming in and out with the mouse wheel
-    if (event.deltaY < 0) {
-        zoomLevel += 0.1;
-    } else {
-        zoomLevel -= 0.1;
+document.addEventListener('wheel', (event) => { // event listener for changing the selected item slot with the mouse wheel
+    if (event.deltaY < 0) { // scrolling up
+        selectedItemSlot = (selectedItemSlot + 4) % 5; // going to the previous slot, wrapping around
+    } else if (event.deltaY > 0) { // scrolling down
+        selectedItemSlot = (selectedItemSlot + 1) % 5; // going to the next slot, wrapping around
     }
-});*/
+    socket.send(JSON.stringify({ action: 'selectItemSlot', selectedItemSlot: selectedItemSlot }) ); // sending the selected item slot to the server
+});
 
 function drawMap(){ // function for drawing the map
     if(!mapData) return; // if there is no map data
-    tileSize = windowWidth > windowHeight ? windowHeight / 20 : windowWidth / 20; // setting the tile size based on the bigger dimension
     //if(!test) return;
     //console.log(mapData.gridSizeX, mapData.gridSizeY);
     push();
     noStroke();
     translate(windowWidth / 2, windowHeight / 2);
-    //scale(zoomLevel);
-    //console.log("Zoom level:", zoomLevel);
+    let scaleX = windowWidth / (40 * tileSize); // the 40 is the vision range of the player that is set on the server
+    let scaleY = windowHeight / (40 * tileSize);
+    let scaleFactor = Math.min(scaleX, scaleY, 1);
+    scale(scaleFactor);
+    // drawing the tiles within the players view distance
     mapData.tiles.forEach((element) => {
+        //console.log(tileSize)
         fill(element.type.color);
         rect(element.x * tileSize - position.x * tileSize, element.y * tileSize - position.y * tileSize, tileSize + 1, tileSize + 1); // +1 is to avoid gaps between tiles
+        //rect(element.x * tileSize - position.x * tileSize, element.y * tileSize - position.y * tileSize, tileSize + 1, tileSize + 1); // +1 is to avoid gaps between tiles
         //console.log("Drawing tile at:", element.x, element.y, "Type:", element.type.name);
     });
+    // drawing the darker tiles that are further away
+    //console.log(mapData.darkTiles);
+    mapData.darkTiles.forEach((element) => {
+        let c = element.type.color;
+        //fill(0)
+        //rect(element.x * tileSize - position.x * tileSize, element.y * tileSize - position.y * tileSize, tileSize + 1, tileSize + 1);
+        //console.log(color);
+        let darkenedColor = color(red(c) * 0.3, green(c) * 0.3, blue(c) * 0.3);
+        fill(darkenedColor);
+        rect(element.x * tileSize - position.x * tileSize, element.y * tileSize - position.y * tileSize, tileSize + 1, tileSize + 1);
+    });
+    // drawing the border lines of the map
+    stroke(0);
+    strokeWeight(4);
+    stroke(255, 0, 0);
+    noFill();
+    rect(-position.x * tileSize, -position.y * tileSize, mapData.gridSizeX * tileSize, mapData.gridSizeY * tileSize);
     pop();
 }
 
@@ -298,11 +343,28 @@ function drawPlayers(){ // draws the players on their x and y positions that are
     if(!mapData) return;
     mapData.nearbyPlayers.forEach((player) => {
         push();
-        translate(windowWidth / 2 - position.x * tileSize, windowHeight / 2 - position.y * tileSize);
+        translate(windowWidth / 2, windowHeight / 2);
+        let scaleX = windowWidth / (40 * tileSize);
+        let scaleY = windowHeight / (40 * tileSize);
+        let scaleFactor = Math.min(scaleX, scaleY, 1);
+        scale(scaleFactor);
+        // drawing the player
         fill(player.color.r, player.color.g, player.color.b);
-        ellipse(player.position.x * tileSize, player.position.y * tileSize, tileSize * 0.8, tileSize * 0.8);
+        ellipse(player.position.x * tileSize - position.x * tileSize, player.position.y * tileSize - position.y * tileSize, (tileSize * 0.9) / scaleFactor, (tileSize * 0.9) / scaleFactor);
+        // drawing a line to indicate the direction the player is facing
         stroke(255, 0, 0);
-        line(player.position.x * tileSize, player.position.y * tileSize, player.position.x * tileSize + cos(player.position.angle) * tileSize * 0.8, player.position.y * tileSize + sin(player.position.angle) * tileSize * 0.8);
+        line(player.position.x * tileSize - position.x * tileSize, player.position.y * tileSize - position.y * tileSize, player.position.x * tileSize - position.x * tileSize + cos(player.position.angle) * (tileSize * 0.8) / scaleFactor, player.position.y * tileSize - position.y * tileSize + sin(player.position.angle) * (tileSize * 0.8) / scaleFactor);
+        // drawing the name of the player above
+        noStroke();
+        fill(255);
+        textAlign(CENTER, BOTTOM);
+        textSize(16 / scaleFactor);
+        text(player.name, player.position.x * tileSize - position.x * tileSize, player.position.y * tileSize - position.y * tileSize - (tileSize * 0.9) / scaleFactor / 2 - 5);
+        // drawing the health bar of the player below
+        fill(255, 0, 0);
+        rect(player.position.x * tileSize - position.x * tileSize - (tileSize * 0.9) / scaleFactor / 2, player.position.y * tileSize - position.y * tileSize + (tileSize * 0.9) / scaleFactor / 2 + 5, (tileSize * 0.9) / scaleFactor, 5);
+        fill(0, 255, 0);
+        rect(player.position.x * tileSize - position.x * tileSize - (tileSize * 0.9) / scaleFactor / 2, player.position.y * tileSize - position.y * tileSize + (tileSize * 0.9) / scaleFactor / 2 + 5, (tileSize * 0.9) / scaleFactor * (player.health / 100), 5);
         pop();
     });
 }
@@ -310,13 +372,33 @@ function drawPlayers(){ // draws the players on their x and y positions that are
 function drawUI(){ // draws the score board and other elements
     push();
     // drawing the position of the player on the top left of the screen
+    let fontSize = windowWidth/40;
+    textSize(fontSize);
+    fill(255);
+    rect(0, 0, textWidth(`Position: X= ${position.x.toFixed(2)}, Y= ${position.y.toFixed(2)}, Angle= ${(Math.round(position.angle * 100)/100).toFixed(2)}`) + 10, textAscent() + textDescent() + 10);
     fill(0);
-    textSize(16);
     textAlign(LEFT, TOP);
-    text(`Position: X= ${position.x.toFixed(2)}, Y= ${position.y.toFixed(2)}, Angle= ${(Math.round(position.angle * 100)/100).toFixed(2)}`, 10, 10);
+    text(`Position: X= ${position.x.toFixed(2)}, Y= ${position.y.toFixed(2)}, Angle= ${(Math.round(position.angle * 100)/100).toFixed(2)}`, 5, 5);
     // drawing the health of the player on the bottom left of the screen
-    textAlign(LEFT, BOTTOM);
-    text(`Health: ${playerHealth}`, 10, windowHeight - 10);
+    fill(255);
+    rect(0, windowHeight - textAscent() - textDescent() - 10, textWidth(`Health: ${playerHealth}/100`) + 10, textAscent() + textDescent() + 10);
+    fill(0);
+    text(`Health: ${playerHealth}/100`, 5, windowHeight - textAscent() - textDescent());
+    // drawing the stamina of the player on the bottom right of the screen
+    fill(255);
+    rect(windowWidth - textWidth(`Stamina: 100/100`) - 10, windowHeight - textAscent() - textDescent() - 10, textWidth(`Stamina: 100/100`) + 10, textAscent() + textDescent() + 10);
+    fill(0);
+    textAlign(RIGHT, TOP);
+    text(`Stamina: ${playerStamina}/100`, windowWidth - 5, windowHeight - textAscent() - textDescent());
+    // drawing the number of bullets the item currently selected has
+    if(inventory[selectedItemSlot] && inventory[selectedItemSlot].ammo !== undefined){ // if there is an item in the selected slot and it has ammo
+        console.log(inventory[selectedItemSlot]);
+        fill(255);
+        rect(windowWidth - textWidth('Ammo: ' + inventory[selectedItemSlot].ammo) - 10, windowHeight - textAscent() - textDescent() - 20 - (tileSize + 5), textWidth('Ammo: ' + inventory[selectedItemSlot].ammo) + 10, textAscent() + textDescent() + 10);
+        fill(0);
+        textAlign(RIGHT, TOP);
+        text('Ammo: ' + inventory[selectedItemSlot].ammo, windowWidth - 5, windowHeight - textAscent() - textDescent() - 10 - (tileSize + 5));
+    }
     // drawing the inventory squares of the player on the bottom center
     for(let i = -2; i <= 2; i++){
         stroke(255);
@@ -330,11 +412,17 @@ function drawUI(){ // draws the score board and other elements
         // drawing the item in the slot if there is one
         if(inventory[i + 2]){
             noStroke();
-            fill(inventory[i + 2].color.r, inventory[i + 2].color.g, inventory[i + 2].color.b);
-            ellipse(windowWidth / 2 + i * (tileSize + 5) - 2, windowHeight - tileSize / 2 - 10, tileSize * 0.6, tileSize * 0.6);
+            if(images[inventory[i + 2].type]){ // if there is an image for the item type then draw it
+                let img = images[inventory[i + 2].type];
+                imageMode(CENTER);
+                image(img, windowWidth / 2 + i * (tileSize + 5), windowHeight - tileSize / 2 - 10, tileSize * 0.6, tileSize * 0.6);
+            }else {
+                fill(inventory[i + 2].color.r, inventory[i + 2].color.g, inventory[i + 2].color.b);
+                ellipse(windowWidth / 2 + i * (tileSize + 5), windowHeight - tileSize / 2 - 10, tileSize * 0.6, tileSize * 0.6);
+            }
             fill(255);
             textAlign(CENTER, CENTER);
-            textSize(12);
+            textSize(fontSize * 0.8);
             text(inventory[i + 2].name, windowWidth / 2 + i * (tileSize + 5), windowHeight - tileSize / 2 - 10 + tileSize / 2 + 10);
         }
     }
@@ -352,34 +440,90 @@ function drawItems(){ // draws the items that are on the map
     let minDistance = Infinity;
     mapData.items.forEach((item) => {
         push();
-        translate(windowWidth / 2 - position.x * tileSize, windowHeight / 2 - position.y * tileSize);
-        fill(item.color.r, item.color.g, item.color.b);
-        ellipse(item.position.x * tileSize, item.position.y * tileSize, tileSize * 0.5, tileSize * 0.5);
+        translate(windowWidth / 2, windowHeight / 2);
+        let scaleX = windowWidth / (40 * tileSize);
+        let scaleY = windowHeight / (40 * tileSize);
+        let scaleFactor = Math.min(scaleX, scaleY, 1);
+        scale(scaleFactor);
+        //console.log(item.type);
+        if(images[item.type]){ // if there is an image for the item type then draw it
+            let img = images[item.type];
+            imageMode(CENTER);
+            image(img, item.position.x * tileSize - position.x * tileSize, item.position.y * tileSize - position.y * tileSize, tileSize*1.5, tileSize*1.5);
+        }else {
+            fill(item.color.r, item.color.g, item.color.b);
+            ellipse(item.position.x * tileSize - position.x * tileSize, item.position.y * tileSize - position.y * tileSize, tileSize*1.5, tileSize*1.5);
+        }
         pop();
         if(distance(position, item.position) < minDistance){ // finding the nearest item to the player
             minDistance = distance(position, item.position);
             nearestItem = item;
         }
     });
-    if(nearestItem && distance(position, nearestItem.position) < 1.5){ // if the player is close enough then drawing a circle with the letter E, this doesnt affect the players ability to interact with the item
+    if(nearestItem && distance(position, nearestItem.position) < 2){ // if the player is close enough then drawing a circle with the letter E, this doesnt affect the players ability to interact with the item
         push();
-        translate(windowWidth / 2 - position.x * tileSize, windowHeight / 2 - position.y * tileSize);
+        translate(windowWidth / 2, windowHeight / 2);
+        let scaleX = windowWidth / (40 * tileSize);
+        let scaleY = windowHeight / (40 * tileSize);
+        let scaleFactor = Math.min(scaleX, scaleY, 1);
+        scale(scaleFactor);
         noFill();
         stroke(255, 255, 0);
-        ellipse(nearestItem.position.x * tileSize, nearestItem.position.y * tileSize, tileSize * 0.6, tileSize * 0.6);
+        ellipse(nearestItem.position.x * tileSize - position.x * tileSize, nearestItem.position.y * tileSize - position.y * tileSize, tileSize * 1.2, tileSize * 1.2);
         fill(255, 255, 0);
         textSize(16);
         textAlign(CENTER, CENTER);
-        text("E", nearestItem.position.x * tileSize, nearestItem.position.y * tileSize);
+        text("E", nearestItem.position.x * tileSize - position.x * tileSize, nearestItem.position.y * tileSize - position.y * tileSize);
         pop();
     }
+}
+
+function drawBulletsAndGrenades(){ // draws the bullets and grenades that are near enough to the player
+    if(!mapData) return;
+    mapData.bullets.forEach((bullet) => {
+        push();
+        translate(windowWidth / 2, windowHeight / 2);
+        let scaleX = windowWidth / (40 * tileSize);
+        let scaleY = windowHeight / (40 * tileSize);
+        let scaleFactor = Math.min(scaleX, scaleY, 1);
+        scale(scaleFactor);
+        //console.log(bullet);
+        if(bulletImages[bullet.bulletType]){ // if there is an image for the bullet type then drawing it
+            let img = bulletImages[bullet.bulletType];
+            imageMode(CENTER);
+            translate(bullet.position.x * tileSize - position.x * tileSize, bullet.position.y * tileSize - position.y * tileSize);
+            rotate(bullet.angle);
+            image(img, 0, 0, tileSize * 0.5, tileSize * 0.3);
+        }else{
+            fill(255, 255, 0);
+            ellipse(bullet.position.x * tileSize - position.x * tileSize, bullet.position.y * tileSize - position.y * tileSize, tileSize * 0.3, tileSize * 0.3);
+        }
+        pop();
+    });
+    mapData.grenades.forEach((grenade) => {
+        push();
+        translate(windowWidth / 2, windowHeight / 2);
+        let scaleX = windowWidth / (40 * tileSize);
+        let scaleY = windowHeight / (40 * tileSize);
+        let scaleFactor = Math.min(scaleX, scaleY, 1);
+        scale(scaleFactor);
+        if(images["grenade"]){ // if there is an image for the grenade type then drawing it
+            let img = images["grenade"];
+            imageMode(CENTER);
+            image(img, grenade.position.x * tileSize - position.x * tileSize, grenade.position.y * tileSize - position.y * tileSize, tileSize * 0.6, tileSize * 0.6);
+        }else{
+            fill(0, 255, 0);
+            ellipse(grenade.position.x * tileSize - position.x * tileSize, grenade.position.y * tileSize - position.y * tileSize, tileSize * 0.5, tileSize * 0.5);
+        }
+        pop();
+    });
 }
 
 function drawSelf(){ // draws the player in the center of the screen and later it will draw whatever he holds
     // drawing the player
     push();
     fill(playerColor.r, playerColor.g, playerColor.b);
-    ellipse(windowWidth / 2, windowHeight / 2, tileSize * 0.8, tileSize * 0.8);
+    ellipse(windowWidth / 2, windowHeight / 2, tileSize * 0.9, tileSize * 0.9);
     // drawing a line to indicate the direction the player is facing
     stroke(255, 0, 0);
     line(windowWidth / 2, windowHeight / 2, windowWidth / 2 + cos(position.angle) * tileSize * 0.8, windowHeight / 2 + sin(position.angle) * tileSize * 0.8);
@@ -387,14 +531,27 @@ function drawSelf(){ // draws the player in the center of the screen and later i
 }
 
 function setup(){ // this function is automatically called once by p5.js
+    tileSize = windowWidth > windowHeight ? windowHeight / 20 : windowWidth / 20; // setting the tile size based on the bigger dimension
     let canvas = createCanvas(windowWidth, windowHeight);
     canvas.parent("gameCanvas")
+    images = {
+        "grenade": loadImage('/images/Explosives/explosiveGrenade.png'),
+        "pistol": loadImage("/images/handguns/pistol1.png"),
+        "health": loadImage("/images/otherItems/medkit.png")
+        // later there will be more, also later it will be loaded dynamically, for now there are only three types of items so this is fine
+    }
+    bulletImages ={
+        "large": loadImage("/images/Bullets/Bullet-large.png"),
+        "shotgun": loadImage("/images/Bullets/Bullet-shotgun.png"),
+        "small": loadImage("/images/Bullets/Bullet-small.png")
+    }
 }
 
 function draw(){ // this function is automatically called by p5.js, it is used for drawing on the canvas
     background(0, 0, 255);
     drawMap();
     drawItems();
+    drawBulletsAndGrenades();
     drawPlayers();
     drawSelf();
     drawUI();

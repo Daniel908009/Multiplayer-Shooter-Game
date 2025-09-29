@@ -19,17 +19,28 @@ function preloadMapData(mapData){ // this function will add items and such to th
         //console.log(tile.zones);
         tile.zones.forEach(zone => { // later there will be more zones and this will be done dynamically
             if(zone.name === "Weapons"){ // also for now all the weapons are the same
+                //let type = Math.random() < 0.5 ? "pistol" : "grenade"; // 50% chance for pistol or grenade
+                let type = "pistol"; // grenades are not implemented yet and I dont have the time to do it rn
+                let bulletType, ammo;
+                if(type === "pistol"){
+                    bulletType = "small";
+                    ammo = Math.floor(Math.random() * 7) + 1; // 1-7 bullets in a pistol
+                }
                 if(Math.random() * 100 < spawnChance){
                     items.push({
+                        type: type,
                         position: { x: tile.x + Math.random() * 0.8 + 0.1, y: tile.y + Math.random() * 0.8 + 0.1 },
-                        color: { r: 255, g: 0, b: 0 }
+                        bulletType: bulletType,
+                        ammo: ammo,
+                        lastFired: 0, // timestamp of when the weapon was last fired, used for rate of fire
+                        color: {r: 255, g: 0, b: 0} // red color is the default for weapons
                     });
                 }
             }else if(zone.name === "Health"){
                 if(Math.random() * 100 < spawnChance){
                     items.push({
+                        type: "health",
                         position: { x: tile.x + Math.random() * 0.8 + 0.1, y: tile.y + Math.random() * 0.8 + 0.1 },
-                        color: { r: 0, g: 255, b: 0 }
                     });
                 }
             }
@@ -37,6 +48,95 @@ function preloadMapData(mapData){ // this function will add items and such to th
     });
     mapData.items = items;
     return mapData;
+}
+
+function allowedPosition(position, map, direction){ // checks if the position is allowed, meaning its not in a wall or outside of the map
+    //return true; // disabling for now
+    // setting offsets based on direction
+    const xOffset = direction === "left" ? -1 : direction === "right" ? 1 : 0;
+    const yOffset = direction === "up" ? -1 : direction === "down" ? 1 : 0;
+    //console.log(position.x, position.y);
+    //console.log(Math.floor(position.x) + xOffset, Math.floor(position.y) + yOffset);
+    //console.log(xOffset, yOffset);
+    //return true; // temp
+    const tile = findNearestTile({x: position.x + xOffset, y: position.y + yOffset}, map.tiles).nearestTile;
+    /*let tile = map.tiles.find(t => {
+        t.x = Math.floor(position.x) + xOffset;
+        t.y = Math.floor(position.y) + yOffset;
+    });*/
+    //return true; // temp
+    if (!tile) return false; // not on a tile
+
+    // Check if the position is within the bounds of the map
+    if (direction === "left" || direction === "right") {
+        if (position.x < 0.75 || position.x + 0.75 >= map.gridSizeX){
+            //console.log("out of bounds");
+            return false;
+        }
+        let tilesArray = [tile, map.tiles.find(t => t.x === tile.x && t.y === tile.y + 1), map.tiles.find(t => t.x === tile.x && t.y === tile.y - 1)];
+        // checking if a part of the player is in the tilesArray, if so then checking if the tile is walkable
+        for (const t of tilesArray) {
+            if (t && !t.type.walkable)  { // this works because the player is 3 tiles wide and tall
+                //console.log("not walkable");
+                return false;
+            }
+        }
+    } else if (direction === "up" || direction === "down") {
+        if (position.y < 0.75 || position.y + 0.75 >= map.gridSizeY) {
+            //console.log("out of bounds");
+            return false;
+        }
+        let tilesArray = [tile, map.tiles.find(t => t.x === tile.x + 1 && t.y === tile.y), map.tiles.find(t => t.x === tile.x - 1 && t.y === tile.y)];
+        // checking if a part of the player is in the tilesArray, if so then checking if the tile is walkable
+        for (const t of tilesArray) {
+            if (t && !t.type.walkable) {
+                //console.log("not walkable");
+                return false;
+            }
+        }
+    }
+    //console.log(tile);
+    // Check if the tile is walkable
+    //if (!tile.type.walkable) return false;
+
+    return true;
+}
+
+function findNearestTile(playerPosition, tiles){ // finds the nearest tile to the player
+    let nearestTile = null;
+    let nearestDistance = Infinity;
+    tiles.forEach(tile => {
+        const distance = calcDistance(playerPosition, {x: tile.x + 0.5, y: tile.y + 0.5}); // calculating distance to the center of the tile
+        if (distance < nearestDistance) {
+            nearestDistance = distance;
+            nearestTile = tile;
+        }
+    });
+    return {nearestTile, nearestDistance};
+}
+
+function findNearestPlayers(player, allPlayers){ // finds the nearest player to the given player
+    let nearestPlayers = [];
+    // adding the player to the array and ordering the array by distance
+    allPlayers.forEach(p => {
+        if (p.ws !== player.ws && p.alive) {
+            const distance = calcDistance(player.position, p.position);
+            nearestPlayers.push({player: p, distance: distance});
+        }
+    });
+    nearestPlayers.sort((a, b) => a.distance - b.distance);
+    return nearestPlayers.map(p => p.player); // returning only the players, not the distance
+}
+
+function speedModifierOfCurrentTile(playerPosition, map){ // finds the tile the player is currently on and returns the speed modifier of that tile
+    let currentTile = findNearestTile(playerPosition, map.tiles);
+    if (currentTile.nearestDistance < 0.75) {
+        //console.log(currentTile);
+        return currentTile.nearestTile.type.speedModifier;
+    }
+    //console.log("No tile found for player position:", playerPosition);
+    //console.log("Nearest tile:", currentTile.nearestTile, "Distance:", currentTile.nearestDistance);
+    return 0.5;
 }
 
 function findNearestItem(playerPosition, items){ // finds the nearest item to the player
@@ -52,7 +152,7 @@ function findNearestItem(playerPosition, items){ // finds the nearest item to th
     return nearestItem;
 }
 
-function validateMapData(mapData){
+function validateMapData(mapData){ // function that validates the map received from the client
     // checking if mapData is an object
     if (typeof mapData !== 'object' || mapData === null) {
         return false;
@@ -78,38 +178,63 @@ function calcDistance(pos1, pos2) {
     return Math.hypot(pos1.x - pos2.x, pos1.y - pos2.y);
 }
 
-let test = true;
-function getNearbyTilesAndOtherInfo(player, map, allPlayers){ // function that will return the map tiles that are near enough to the player, this function is here to prevent cheating by the player (if the entire map would be sent then the player could use it to gain an unfair advantage)
-    let nearbyTilesAndInfo = {tiles: [], gridSizeX: map.gridSizeX, gridSizeY: map.gridSizeY, nearbyPlayers: [], items: []};
-    const viewDistance = 17; // this is the number that limits which tiles can be seen by the player
-    //console.log("Player position:", playerX, playerY);
-    test = true;
+function getNearbyTilesAndOtherInfo(player, map, allPlayers, bullets, grenades){ // function that will return the map tiles that are near enough to the player, this function is here to prevent cheating by the player (if the entire map would be sent then the player could use it to gain an unfair advantage)
+    let nearbyTilesAndInfo = {tiles: [], darkTiles: [], gridSizeX: map.gridSizeX, gridSizeY: map.gridSizeY, nearbyPlayers: [], items: [], bullets: [], grenades: []};
+    const viewDistance = 18; // this is the number that limits which tiles/items/players can be seen by the player
+    const showingDistance = viewDistance*2.5 > 39 ? viewDistance*2.5 : 39; // this is the distance at which tiles will still be sent to the client, but they will be drawn darker
+    // getting the nearby tiles
     map.tiles.forEach(tile => {
         //console.log(tile.x, tile.y);
-        if (calcDistance(tile, player.position) <= viewDistance && test) {
+        let distanceToTile = calcDistance(tile, player.position);
+        if (distanceToTile <= viewDistance) { // later this will be done as a rectangle instead of distance so that it wont be possible to cheat, DO THIS
             nearbyTilesAndInfo.tiles.push(tile);
             //console.log("Player position:", player.position.x, player.position.y);
             //console.log("Tile added:", tile.x, tile.y);
             //console.log("Distance:", calcDistance(tile, player.position));
             //test = false;
+        }else if(distanceToTile <= showingDistance){
+            nearbyTilesAndInfo.darkTiles.push(tile);
         }
-        
     });
+    // getting the nearby players
     allPlayers.forEach(otherPlayer => {
         if (otherPlayer.ws !== player.ws) {
             const distance = calcDistance(otherPlayer.position, player.position);
             if (distance <= viewDistance) {
-                nearbyTilesAndInfo.nearbyPlayers.push(otherPlayer.position);
+                nearbyTilesAndInfo.nearbyPlayers.push({
+                    name: otherPlayer.name,
+                    position: otherPlayer.position,
+                    health: otherPlayer.health,
+                    color: otherPlayer.color
+                });
             }
         }
     });
-    //console.log(map.items)
+    // getting the items
     map.items.forEach(item => {
         //console.log(item.x)
         if (calcDistance(item.position, player.position) <= viewDistance) {
             nearbyTilesAndInfo.items.push(item);
         }
     });
+    // getting the bullets
+    bullets.forEach(bullet => {
+        if (calcDistance(bullet.position, player.position) <= viewDistance) {
+            nearbyTilesAndInfo.bullets.push({position: bullet.position, 
+            bulletType: bullet.bulletType,
+            angle: bullet.angle});// only sending the necessary info about the bullet
+        }
+    });
+    // getting the grenades
+    if (grenades) {
+        grenades.forEach(grenade => {
+            if (calcDistance(grenade.position, player.position) <= viewDistance) {
+                nearbyTilesAndInfo.grenades.push({ position: grenade.position,
+                angle: grenade.angle,
+                timeToExplode: grenade.timeToExplode });
+            }
+        });
+    }
     return nearbyTilesAndInfo;
 }
 
@@ -142,6 +267,7 @@ app.post('/create-lobby', (req, res) => {
         isPublic: public, // if the lobby is public or private
         password: password, // used as an extra security measure for private lobbies
         bullets: [], // this will hold all the bullet objects
+        grenades: [], // this will hold all the grenade objects
         securityString: randomString, // this will be used to ensure that only real players can join the lobby, basically it should prevent someone from just copy pasting the https address into a new window
         map: null
     };
@@ -174,6 +300,10 @@ app.get('/random-username', (req, res) => { // this is called when a client requ
 
 app.post('/join-lobby', (req, res) => { // this is called when a player wants to join a lobby
     const {lobbyId, playerName, password} = req.body;
+    //console.log(lobbyId)
+    //console.log(lobbies)
+    //console.log(password)
+    //console.log(lobbies[lobbyId].password)
     // checking if the lobby exists and if it is open for joining
     if(!lobbies[lobbyId]) {
         return res.status(400).json("Lobby not found");
@@ -292,9 +422,13 @@ wss.on('connection', (ws) => {
             // adding the player to the lobby and giving him info
             lobbies[lobbyId].players.push({"name": playerName, "id": uniqueID, 
                 "isMain": isMain, "ws": ws, 
-                "position": {x: 0, y: 0, angle: 0}, lastMove: Date.now(), 
+                "position": {x: 5, y: 5, angle: 0}, lastMove: Date.now(), // for now the starting position is 5 5 later it will be changed, FIX THIS
                 lastMouseMove: Date.now(), "ready": ready,"color":color, 
-                interactCooldown: 0, health: 100, inventory: [null, null, null, null, null], selectedItemSlot: 0});
+                interactCooldown: 0, health: 100,
+                inventory: [null, null, null, null, null], selectedItemSlot: 0,
+                stamina: 100, staminaRegenFunc: null, alive: true,
+                punchCooldown: 0
+            });
             ws.send(JSON.stringify({
                 action: 'joined',
                 isMain: isMain,
@@ -303,6 +437,7 @@ wss.on('connection', (ws) => {
                 lobbyId: lobbyId,
                 lobbyPassword: lobbies[lobbyId].password || null,
                 isPublic: lobbies[lobbyId].isPublic,
+                map: lobbies[lobbyId].map
             }));
             lobbies[lobbyId].players.forEach(player => {
                 player.ws.send(JSON.stringify({
@@ -341,13 +476,73 @@ wss.on('connection', (ws) => {
                     lobbies[lobbyId].players.forEach(player => {
                         player.ws.send(JSON.stringify({ action: 'gameStarted'}));
                     });
-                    // starting the game loop sending of the map
+                    // starting the game loop
                     lobbies[lobbyId].mapInterval = setInterval(() => {
+                        // sending the map data
                         lobbies[lobbyId].players.forEach(player => {
                             //console.log(getNearbyTiles(player, lobbies[lobbyId].map));
-                            player.ws.send(JSON.stringify({ action: 'mapData', mapData: getNearbyTilesAndOtherInfo(player, lobbies[lobbyId].map, lobbies[lobbyId].players) }));
+                            player.ws.send(JSON.stringify({ action: 'mapData', mapData: getNearbyTilesAndOtherInfo(player, lobbies[lobbyId].map, lobbies[lobbyId].players, lobbies[lobbyId].bullets, lobbies[lobbyId].grenades) }));
                         });
-                    }, 1000 / 30); // 30 times a second
+                        // updating the bullets
+                        let bulletsToRemove = [];
+                        lobbies[lobbyId].bullets.forEach((bullet, index) => {
+                            bullet.traveledDistance += bullet.speed;
+                            if (bullet.traveledDistance >= bullet.maxDistance) {
+                                bulletsToRemove.push(index);
+                            }
+                        });
+                        // removing the bullets
+                        bulletsToRemove.forEach(index => {
+                            clearInterval(lobbies[lobbyId].bullets[index].updateFunc);
+                            lobbies[lobbyId].bullets.splice(index, 1);
+                        });
+                        // unaliving??? the players that are at 0 health
+                        lobbies[lobbyId].players.forEach(p => {
+                            if (p.health <= 0 && p.alive) {
+                                p.alive = false;
+                                p.ws.send(JSON.stringify({ action: 'playerDied' }));
+                            }
+                        });
+                        // checking if the game is over(only one player is a alive and there were more than 1 player in the lobby)
+                        let alivePlayers = lobbies[lobbyId].players.filter(p => p.alive);
+                        if (alivePlayers.length <= 1 && lobbies[lobbyId].players.length > 1) {
+                            lobbies[lobbyId].players.forEach(p => {
+                                p.ws.send(JSON.stringify({ action: 'gameOver', winner: alivePlayers[0] ? alivePlayers[0].name : null }));
+                            });
+                            lobbies[lobbyId].hasStarted = false;
+                            clearInterval(lobbies[lobbyId].mapInterval);
+                            // resetting the players
+                            lobbies[lobbyId].players.forEach(p => {
+                                if(!p.isMain) p.ready = false;
+                                p.alive = true;
+                                p.health = 100;
+                                p.position = {x: 5, y: 5, angle: 0};
+                                p.stamina = 100;
+                                if(p.staminaRegenFunc){
+                                    clearInterval(p.staminaRegenFunc);
+                                    p.staminaRegenFunc = null;
+                                }
+                            });
+                            // sending the updated player list to all players in the lobby
+                            lobbies[lobbyId].players.forEach(p => {
+                                p.ws.send(JSON.stringify({
+                                    action: 'lobbyInfo',
+                                    thisPlayer: {
+                                        id: p.id,
+                                        name: p.name,
+                                        isMain: p.isMain,
+                                        ready: p.ready
+                                    },
+                                    players: lobbies[lobbyId].players.map(player => ({
+                                        id: player.id,
+                                        name: player.name,
+                                        isMain: player.isMain,
+                                        ready: player.ready
+                                    }))
+                                }));
+                            });
+                        }
+                        }, 1000 / 30); // 30 times a second
                 }else if(!allReady){
                     ws.send(JSON.stringify({ action: 'error', message: 'Not all players are ready.' , fatal: false }));
                 }else{
@@ -395,16 +590,73 @@ wss.on('connection', (ws) => {
         }else if (data.action === 'keys'){ // is called when a player requests to move or does an action
             const lobbyId = ws.lobbyId;
             const player = lobbies[lobbyId].players.find(player => player.ws === ws);
-            if (lobbies[lobbyId].hasStarted === true) {
+            if (lobbies[lobbyId].hasStarted === true && player && player.alive) {
                 // moving the player based on the keys pressed
                 if(player.lastMove + 10 < Date.now()){ // limiting the movement updates to 100 per second
                     player.lastMove = Date.now();
-                    let speedMultiplier = 1;
-                    if(data.keys.length > 1) speedMultiplier = 0.7;
-                    if(data.keys.includes('a')) player.position.x -= 0.1 * speedMultiplier;
-                    if(data.keys.includes('d')) player.position.x += 0.1 * speedMultiplier;
-                    if(data.keys.includes('s')) player.position.y += 0.1 * speedMultiplier;
-                    if(data.keys.includes('w')) player.position.y -= 0.1 * speedMultiplier;
+                    let speedMultiplier = speedModifierOfCurrentTile(player.position, lobbies[lobbyId].map);
+                    function modifyKeysArray(keysArray){ // function that removes the keys that cancel each other out
+                        let modified = keysArray;
+                        if(keysArray.includes('a') && keysArray.includes("d")){
+                            modified = modified.filter(key => key !== 'a' && key !== 'd');
+                        }
+                        if(keysArray.includes('w') && keysArray.includes("s")){
+                            modified = modified.filter(key => key !== 'w' && key !== 's');
+                        }
+                        // removing all the keys that are not a, d, w, s or shift
+                        modified = modified.filter(key => ['a', 'd', 'w', 's', 'shift'].includes(key));
+                        return modified;
+                    }
+                    let keys = modifyKeysArray(data.keys);
+                    let diagonal = 1;
+                    if(keys.length > 1){
+                        diagonal = Math.sqrt(2) / 2; // this is used to ensure that the player doesn't move faster when moving diagonally
+                    }
+                    //console.log(keys);
+                    //console.log(speedMultiplier*diagonal);
+                    //console.log(diagonal);
+                    if(keys.includes('shift') && player.stamina > 0 && keys.length > 1){ // running if shift is held, "shift" has to be written in lowercase since its converted to lowercase on the client side
+                        clearInterval(player.staminaRegenFunc);
+                        player.staminaRegenFunc = null;
+                        speedMultiplier *= 2;
+                        player.stamina -= 0.5; // stamina is regenerating in the game loop by 0.25 every tick, and the loop runs 30 times a second
+                        if(player.stamina < 0) player.stamina = 0;
+                        player.ws.send(JSON.stringify({ action: 'staminaUpdate', stamina: Math.round(player.stamina) }));
+                    }else if(player.stamina < 100 && !keys.includes('shift')){
+                        if(!player.staminaRegenFunc){
+                            player.staminaRegenFunc = setInterval(() => {
+                                if(player.stamina < 100){
+                                    player.stamina += 0.25;
+                                    if(player.stamina > 100) player.stamina = 100;
+                                    player.ws.send(JSON.stringify({ action: 'staminaUpdate', stamina: Math.round(player.stamina) }));
+                                }else{
+                                    clearInterval(player.staminaRegenFunc);
+                                    player.staminaRegenFunc = null;
+                                }
+                            }, 1000 / 30); // 30 times a second
+                        }
+                    }
+                    //console.log(speedMultiplier);
+                    if(keys.includes('a')){
+                        player.position.x -= 0.15 * speedMultiplier * diagonal;
+                        if(!allowedPosition(player.position, lobbies[lobbyId].map, "left")) player.position.x += 0.15 * speedMultiplier * diagonal; //checking that the new position is allowed, meaning its not in a wall or outside of the map, if its not allowed then reversing the last movement
+                    }
+
+                    if(keys.includes('d')){
+                        player.position.x += 0.15 * speedMultiplier * diagonal;
+                        if(!allowedPosition(player.position, lobbies[lobbyId].map, "right")) player.position.x -= 0.15 * speedMultiplier * diagonal; // it is a bit dumb to have the two ifs like this but it is the fastest solution rn, I will change it later though
+                    }
+
+                    if(keys.includes('s')){
+                        player.position.y += 0.15 * speedMultiplier * diagonal;
+                        if(!allowedPosition(player.position, lobbies[lobbyId].map, "down")) player.position.y -= 0.15 * speedMultiplier * diagonal;
+                    }
+
+                    if(keys.includes('w')){
+                        player.position.y -= 0.15 * speedMultiplier * diagonal;
+                        if(!allowedPosition(player.position, lobbies[lobbyId].map, "up")) player.position.y += 0.15 * speedMultiplier * diagonal;
+                    }
+
                     player.position.x = Math.round(player.position.x * 100) / 100;
                     player.position.y = Math.round(player.position.y * 100) / 100;
                     //console.log(player.position);
@@ -414,14 +666,16 @@ wss.on('connection', (ws) => {
         }else if(data.action === 'interact'){ // called when the player interacts with an item
             const lobbyId = ws.lobbyId;
             const player = lobbies[lobbyId].players.find(player => player.ws === ws);
-            if (player && lobbies[lobbyId].hasStarted === true && player.interactCooldown + 500 < Date.now()) {
+            //console.log("interact");
+            if (player && lobbies[lobbyId].hasStarted === true && player.interactCooldown + 200 < Date.now()) {
                 let nearestItem = findNearestItem(player.position, lobbies[lobbyId].map.items);
-                if (nearestItem && calcDistance(player.position, nearestItem.position) < 1.5) {
+                if (nearestItem && calcDistance(player.position, nearestItem.position) < 2) {
                     // removing the item from the map
                     lobbies[lobbyId].map.items = lobbies[lobbyId].map.items.filter(item => item !== nearestItem);
                     player.interactCooldown = Date.now();
                     // adding the item to the player's inventory if there is space
                     let added = false;
+                    //console.log(nearestItem.ammo);
                     // first trying to add the item to the selected slot
                     if (player.inventory[player.selectedItemSlot] === null) {
                         player.inventory[player.selectedItemSlot] = nearestItem;
@@ -462,15 +716,182 @@ wss.on('connection', (ws) => {
         }else if (data.action === 'mouseMove'){
             const lobbyId = ws.lobbyId;
             const player = lobbies[lobbyId].players.find(player => player.ws === ws);
-            if(lobbies[lobbyId].hasStarted === true){
+            if(lobbies[lobbyId].hasStarted === true && player && player.alive){
                 if (player && player.lastMouseMove + 10 < Date.now()) { // limiting the mouse move updates to 100 per second
                     player.position.angle = Math.atan2(data.y - data.center.y, data.x - data.center.x);
                     player.ws.send(JSON.stringify({ action: 'positionUpdate', position: player.position }));
                     player.lastMouseMove = Date.now();
                 }
             }
-        }else if (data.action === 'click'){
-            // shooting here
+        }else if (data.action === 'leftClick'){ // called when the player wants to use the item in the selected slot
+            const lobbyId = ws.lobbyId;
+            const player = lobbies[lobbyId].players.find(player => player.ws === ws);
+            if (player && lobbies[lobbyId].hasStarted === true && player.alive) {
+                const slotIndex = player.selectedItemSlot;
+                if (slotIndex >= 0 && slotIndex < player.inventory.length) {
+                    const item = player.inventory[slotIndex];
+                    if (item) {
+                        // using the items, later on this will be dinamic and there will be ways to add custom items, for now its just medkit, pistol and grenade, FIX THIS
+                        if(item){
+                            //console.log(item.type);
+                            switch(item.type){
+                                case "health":
+                                    if(player.health < 100){
+                                        player.health += 25;
+                                        if(player.health > 100) player.health = 100;
+                                        player.ws.send(JSON.stringify({ action: 'healthUpdate', health: player.health }));
+                                        // removing the medkit from the inventory
+                                        player.inventory[slotIndex] = null;
+                                        player.ws.send(JSON.stringify({ action: 'inventoryUpdate', inventory: player.inventory }));
+                                    }
+                                    break;
+                                case "pistol":
+                                    // shooting a bullet
+                                    //console.log("fire");
+                                    if(item.lastFired + 300 > Date.now()) return; // pistol can only be fired once every 300ms
+                                    let uniqueID = player.id + "_" + Date.now();
+                                    item.ammo -= 1;
+                                    item.lastFired = Date.now();
+                                    if(item.ammo < 0){
+                                        // later this will trigger a text saying no ammo, FIX THIS
+                                        //console.log("no ammo");
+                                        item.ammo = 0;
+                                        player.ws.send(JSON.stringify({ action: 'inventoryUpdate', inventory: player.inventory }));
+                                        return;
+                                    }
+                                    player.ws.send(JSON.stringify({ action: 'inventoryUpdate', inventory: player.inventory }));
+                                    lobbies[lobbyId].bullets.push({
+                                        position: { x: player.position.x, y: player.position.y },
+                                        angle: player.position.angle,
+                                        shotBy: player.id,
+                                        speed: 1,
+                                        maxDistance: 30,
+                                        uniqueID: uniqueID,
+                                        bulletType: item.bulletType,
+                                        updateFunc: setInterval((uniqueID) => {
+                                            // updating the bullets position
+                                            let bullet = lobbies[lobbyId].bullets.find(b => b.uniqueID === uniqueID);
+                                            if (bullet) {
+                                                bullet.position.x += Math.cos(bullet.angle) * bullet.speed;
+                                                bullet.position.y += Math.sin(bullet.angle) * bullet.speed;
+                                                let nearest = findNearestTile(bullet.position, lobbies[lobbyId].map.tiles);
+                                                //console.log(nearest);
+                                                let onTile = nearest.nearestTile;
+                                                // checking if the bullet is inside a wall or outside of the map
+                                                if (!onTile || onTile.type.walkable === false || bullet.position.x < 0.5 || bullet.position.x >= lobbies[lobbyId].map.gridSizeX - 0.5 || bullet.position.y < 0.5 || bullet.position.y >= lobbies[lobbyId].map.gridSizeY - 0.5) {
+                                                    // removing the bullet
+                                                    clearInterval(bullet.updateFunc);
+                                                    lobbies[lobbyId].bullets = lobbies[lobbyId].bullets.filter(b => b.uniqueID !== uniqueID);
+                                                    return;
+                                                }
+                                                // checking if the bullet hit a player
+                                                lobbies[lobbyId].players.forEach(p => {
+                                                    if (p.id !== bullet.shotBy) { // ensuring that the bullet doesn't hit the player that shot it
+                                                        if (calcDistance(p.position, bullet.position) < 1) {
+                                                            // bullet hit the player
+                                                            p.health -= 20; // for now the pistol does 20 damage, later this will be dynamic based on the weapon, FIX THIS
+                                                            if (p.health < 0) p.health = 0;
+                                                            p.ws.send(JSON.stringify({ action: 'healthUpdate', health: p.health }));
+                                                            // removing the bullet
+                                                            clearInterval(bullet.updateFunc);
+                                                            lobbies[lobbyId].bullets = lobbies[lobbyId].bullets.filter(b => b.uniqueID !== uniqueID);
+                                                            return;
+                                                        }
+                                                    }
+                                                });
+                                            }
+                                            //console.log("bullet updated");
+                                        }, 1000 / 60, uniqueID) // 60 times a second
+                                    });
+                                    break;
+                                case "grenade":
+                                    // removing the grenade from the inventory
+                                    player.inventory[slotIndex] = null;
+                                    player.ws.send(JSON.stringify({ action: 'inventoryUpdate', inventory: player.inventory }));
+                                    // throwing the grenade, basically starting a moving interval that moves the grenade forward and after 2 seconds it explodes dealing damage to all players in a certain radius
+                                    const grenadeID = player.id + "_" + Date.now();
+                                    const speed = 0.3; // grenade speed
+                                    let grenadePosition = { x: player.position.x, y: player.position.y };
+                                    let grenadeAngle = player.position.angle;
+                                    console.log(lobbies[lobbyId]);
+                                    lobbies[lobbyId].grenades.push({ position: grenadePosition, angle: grenadeAngle, uniqueID: grenadeID });
+                                    let grenadeInterval = setInterval((grenadeID) => {
+                                        let grenade = lobbies[lobbyId].grenades.find(g => g.uniqueID === grenadeID);
+                                        if (grenade) {
+                                            grenade.position.x += Math.cos(grenade.angle) * speed;
+                                            grenade.position.y += Math.sin(grenade.angle) * speed;
+                                            let nearest = findNearestTile(grenade.position, lobbies[lobbyId].map.tiles);
+                                            let onTile = nearest.nearestTile;
+                                            // checking if the grenade is inside a wall or outside of the map
+                                            if (!onTile || onTile.type.walkable === false || grenade.position.x < 0.5 || grenade.position.x >= lobbies[lobbyId].map.gridSizeX - 0.5 || grenade.position.y < 0.5 || grenade.position.y >= lobbies[lobbyId].map.gridSizeY - 0.5) {
+                                                // making the grenade explode
+                                                grenade.position.x -= Math.cos(grenade.angle) * 0.3;
+                                                grenade.position.y -= Math.sin(grenade.angle) * 0.3;
+                                                clearInterval(grenadeInterval);
+                                                lobbies[lobbyId].grenades = lobbies[lobbyId].grenades.filter(g => g.uniqueID !== grenadeID);
+                                                // dealing damage to all players in a radius
+                                                const radius = 5;
+                                                let nearbyPlayers = findNearestPlayers(grenade.position, lobbies[lobbyId].players);
+                                                nearbyPlayers.forEach(player => {
+                                                    if (calcDistance(grenade.position, player.position) < radius) {
+                                                        player.health -= 50; // dealing 50 damage
+                                                        if (player.health < 0) player.health = 0;
+                                                        player.ws.send(JSON.stringify({ action: 'healthUpdate', health: player.health }));
+                                                    }
+                                                });
+                                                return;
+                                            }
+                                        }
+                                    }, 1000 / 60, grenadeID); // 60 times a second
+                                    break;
+                                default:
+                                    break;
+                            }
+                        }
+                    }else if (player.punchCooldown < Date.now() + 400) { // punching someone if they are near enough
+                        let nearestPlayer = findNearestPlayers(player, lobbies[lobbyId].players)[0]; // finding the nearest player
+                        if (nearestPlayer && calcDistance(player.position, nearestPlayer.position) < 2) {
+                            nearestPlayer.health -= 10; // punching does 10 damage
+                            if (nearestPlayer.health < 0) nearestPlayer.health = 0;
+                            nearestPlayer.ws.send(JSON.stringify({ action: 'healthUpdate', health: nearestPlayer.health }));
+                            player.punchCooldown = Date.now();
+                        }    
+                    }
+                }
+            }
+        }else if (data.action === "dropItem"){ // called when the player wants to drop an item
+            const lobbyId = ws.lobbyId;
+            const player = lobbies[lobbyId].players.find(player => player.ws === ws);
+            if (player && lobbies[lobbyId].hasStarted === true) {
+                const slotIndex = data.selectedItemSlot;
+                if (slotIndex >= 0 && slotIndex < player.inventory.length) {
+                    const item = player.inventory[slotIndex];
+                    if (item) {
+                        // calculating offsets so that the item drops in front of the player
+                        let offsetX = Math.cos(player.position.angle) * 1.5;
+                        let offsetY = Math.sin(player.position.angle) * 1.5;
+                        // checking if the drop position is valid and not inside a wall or outside of the map
+                        let itemDropPositionTile = findNearestTile({x: player.position.x + offsetX, y: player.position.y + offsetY}, lobbies[lobbyId].map.tiles).nearestTile;
+                        // checking if the item drop position is walkable, if not then dropping the item at the player's position
+                        if (!itemDropPositionTile || !itemDropPositionTile.type.walkable) {
+                            offsetX = 0;
+                            offsetY = 0;
+                            //console.log("not walkable");
+                        }
+                        // checking if the item drop position is outside of the map boundaries, if so then dropping the item at the player's position
+                        if (player.position.x + offsetX < 0.5 || player.position.x + offsetX >= lobbies[lobbyId].map.gridSizeX - 0.5 || player.position.y + offsetY < 0.5 || player.position.y + offsetY >= lobbies[lobbyId].map.gridSizeY - 0.5) {
+                            offsetX = 0;
+                            offsetY = 0;
+                            //console.log("out of bounds");
+                        }
+                        // dropping the item on the ground
+                        lobbies[lobbyId].map.items.push({ position: { x: player.position.x + offsetX, y: player.position.y + offsetY }, color: item.color, type: item.type, ammo: item.ammo, bulletType: item.bulletType || null });
+                        // removing the item from the player's inventory
+                        player.inventory[slotIndex] = null;
+                        player.ws.send(JSON.stringify({ action: 'inventoryUpdate', inventory: player.inventory }));
+                    }
+                }
+            }
         }else if (data.action === "joinCreator"){ // when someone opens a creator window tab
             const {randomString} = data;
             ws.rString = randomString; // storing the random string in the WebSocket object, its easier to do some things with it later
