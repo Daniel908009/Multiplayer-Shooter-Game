@@ -153,8 +153,8 @@ function requestPublicLobbies(){ // requesting the lobbies from the server
                             button.className = 'btn btn-primary';
                             button.textContent = 'Join';
                             button.onclick = () => {
-                                document.getElementById("lobbyID").value = lobby.id;
-                                document.getElementById("lobbyPassword").value = ''; // clearing the password field
+                                document.getElementById("lobbyIdentifier").value = lobby.id;
+                                document.getElementById("lobbyPassw").value = ''; // clearing the password field
                                 joinLobby();
                             };
                             div.appendChild(p);
