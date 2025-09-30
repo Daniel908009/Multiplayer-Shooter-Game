@@ -10,7 +10,7 @@ Because of that decision, this project is basically split into two parts:
 - the actual game
 - the map designer, which is used to create maps that can later be loaded and played in the game
 
-Live deployment:❗ Important: Live deployment is currently not available. I wasn’t aware that my student status needed to be verified beforehand in order to use Hack Club’s Nest. I’ll apply now, but it’s unlikely I’ll get it deployed in time for the end of the Summer of Making. As a temporary fix, I recorded two videos showcasing this project.
+Live deployment: !Important: Live deployment is currently not available. I wasn’t aware that my student status needed to be verified beforehand in order to use Hack Club’s Nest. I’ll apply now, but it’s unlikely I’ll get it deployed in time for the end of the Summer of Making. As a temporary fix, I recorded two videos showcasing this project.
 The Game video link: - [Game video](https://www.youtube.com/watch?v=t6db3MScNCg)
 The Map Designer video link: - [Map Designer video](https://www.youtube.com/watch?v=HJtbwzE4uG4)
 
@@ -25,7 +25,7 @@ On the other hand, the map designer is pretty much complete. It has all of the n
 I wanted to gain better experience with multiplayer online games, particularly with anti-cheat aspects. Basically, I wanted to learn how to run most of the game logic on the server side while making the client just a terminal that can’t influence the game loop in a cheaty way.
 
 ## How to play
-❗ Important: First read the **Current state of the game** section of this readme
+!Important: First read the **Current state of the game** section of this readme
 
 ### Game controls
 - **W, A, S, D** for movement
@@ -51,7 +51,7 @@ Keep in mind:
 The map designer also works on mobile, but most of the controls are handled using buttons that only appear on mobile screens. They’re pretty intuitive, so I won’t describe them here.
 
 ## Features
-❗ Important: I tried to write the features in chronological order. However, sometimes I work on multiple things at once, or I may add features later, so this list is just a prediction of how I imagine development going. I also for sure forgot some already achieved goals so if you want to know all the features that are in, you will have to read the commits or the actual code.
+!Important: I tried to write the features in chronological order. However, sometimes I work on multiple things at once, or I may add features later, so this list is just a prediction of how I imagine development going. I also for sure forgot some already achieved goals so if you want to know all the features that are in, you will have to read the commits or the actual code.
 
 - [X] Basic project structure (main menu, game, and editor files)
 - [X] Fully functioning main menu with working modals and buttons
@@ -84,7 +84,7 @@ The map designer also works on mobile, but most of the controls are handled usin
 - [ ] Renaming this project since the current name is only good for a Github repo
 
 ## Screenshots
-###❗Important: Each screenshot has a description below it so you can understand what you are seeing.
+### !Important: Each screenshot has a description below it so you can understand what you are seeing.
 
 <img src="https://github.com/user-attachments/assets/9e5a9f37-ae0d-4269-89a4-e4bbf40dbb7c" alt="Main menu" width="600"/><br/>
 This is the main menu.
@@ -102,7 +102,7 @@ This is how the map designer looks on pc.
 This is how the map designer looks on mobile.
 
 ## How to download and run locally
-❗ Important: This project requires Node.js.
+!Important: This project requires Node.js.
 
 If you want to download this project, I recommend picking the latest release from this repository (releases are listed on the right side when opened, usually named something like `v1.0`).
 
