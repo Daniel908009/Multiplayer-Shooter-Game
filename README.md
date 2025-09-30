@@ -2,27 +2,27 @@
 
 ## What is it?
 This project is exactly what the name suggests: a multiplayer online game with a frontend made with Bootstrap 5 and p5.js, and a backend made with Node.js. 
-Originally, I wanted to make a simple game without any map panning — meaning my goal was to load small maps where all the players could see everything. Kind of like the game Stick Fight.
+Originally, I wanted to make a simple game without any map panning, meaning my goal was to load small maps where all the players could see everything. Kind of like the game Stick Fight.
 
-But during development I realized that it was too easy, and the result would be kinda meh since I’m not an artist, so all the graphics would always look horrible. Because of that, I decided to increase the project’s quality by doing more interesting things in the code (like loading parts of a bigger map based on the distance that the player can see).
+But during development I realized that it was too easy, and the result would be kinda meh since I am not an artist, so all the graphics would always look horrible. Because of that, I decided to increase the projects quality by doing more interesting things in the code (like loading parts of a bigger map based on the distance that the player can see).
 
 Because of that decision, this project is basically split into two parts:
 - the actual game
 - the map designer, which is used to create maps that can later be loaded and played in the game
 
-Live deployment: !Important: Live deployment is currently not available. I wasn’t aware that my student status needed to be verified beforehand in order to use Hack Club’s Nest. I’ll apply now, but it’s unlikely I’ll get it deployed in time for the end of the Summer of Making. As a temporary fix, I recorded two videos showcasing this project.
+Live deployment: !Important: Live deployment is currently not available. I was not aware that my student status needed to be verified beforehand in order to use Hack Clubs Nest. I will apply now, but it is unlikely I will get it deployed in time for the end of the Summer of Making. As a temporary fix, I recorded two videos showcasing this project.
 The Game video link: - [Game video](https://www.youtube.com/watch?v=t6db3MScNCg)
 The Map Designer video link: - [Map Designer video](https://www.youtube.com/watch?v=HJtbwzE4uG4)
 
 # Current state of the game
-Right now the game is in a very basic state. The actual game does work, but there isn’t much content yet — for example, there is only one type of gun and the only other item is a medkit.
+Right now the game is in a very basic state. The actual game does work, but there is not much content yet — for example, there is only one type of gun and the only other item is a medkit.
 
 Things like dynamic speed (based on what the player is standing on), walls and boundaries and showing parts of the map based on players vision are implemented though.
 
 On the other hand, the map designer is pretty much complete. It has all of the necessary features and more — for example, it works on mobile too. I also think it’s easily upgradable in case I start adding more features (see the **Features** part of this readme).
 
 ## Why did I do it?
-I wanted to gain better experience with multiplayer online games, particularly with anti-cheat aspects. Basically, I wanted to learn how to run most of the game logic on the server side while making the client just a terminal that can’t influence the game loop in a cheaty way.
+I wanted to gain better experience with multiplayer online games, particularly with anticheat aspects. Basically, I wanted to learn how to run most of the game logic on the server side while making the client just a terminal that cannot influence the game loop in a cheaty way.
 
 ## How to play
 !Important: First read the **Current state of the game** section of this readme
@@ -30,7 +30,7 @@ I wanted to gain better experience with multiplayer online games, particularly w
 ### Game controls
 - **W, A, S, D** for movement
 - **E** to pick up items
-- **Left click** to use items (some have specific conditions, e.g. you can’t use a medkit if you already have full health)
+- **Left click** to use items (some have specific conditions, e.g. you cannot use a medkit if you already have full health)
 - **Right click** to drop the item in the currently selected slot (highlighted by the yellow square)
 - **Scroll wheel** or **number keys** to switch the currently selected item slot
 
