@@ -86,19 +86,19 @@ The map designer also works on mobile, but most of the controls are handled usin
 ## Screenshots
 ###❗Important: Each screenshot has a description below it so you can understand what you are seeing.
 
-<img src="https://github.com/user-attachments/assets/9e5a9f37-ae0d-4269-89a4-e4bbf40dbb7c" alt="Main menu" width="600"/>
+<img src="https://github.com/user-attachments/assets/9e5a9f37-ae0d-4269-89a4-e4bbf40dbb7c" alt="Main menu" width="600"/><br/>
 This is the main menu.
 
-<img src="https://github.com/user-attachments/assets/8ba6a1fc-0d46-45d8-ac06-6b405887c522" alt="Waiting room" width="600"/>
+<img src="https://github.com/user-attachments/assets/8ba6a1fc-0d46-45d8-ac06-6b405887c522" alt="Waiting room" width="600"/><br/>
 This is how the waiting room looks when you join a lobby.
 
-<img src="https://github.com/user-attachments/assets/bc127c3c-8e4c-47a1-963d-a7f578643148" alt="Game started" width="600"/>
+<img src="https://github.com/user-attachments/assets/bc127c3c-8e4c-47a1-963d-a7f578643148" alt="Game started" width="600"/><br/>
 This is how the game looks once it starts.
 
-<img src="https://github.com/user-attachments/assets/c0eba58d-c470-4ffb-a61e-96cb18c0ff18" alt="Map designer PC" width="600"/>
+<img src="https://github.com/user-attachments/assets/c0eba58d-c470-4ffb-a61e-96cb18c0ff18" alt="Map designer PC" width="600"/><br/>
 This is how the map designer looks on pc.
 
-<img src="https://github.com/user-attachments/assets/278f1610-7b38-43cb-baea-93e4907774a7" alt="Map designer Mobile" width="300"/>
+<img src="https://github.com/user-attachments/assets/278f1610-7b38-43cb-baea-93e4907774a7" alt="Map designer Mobile" width="300"/><br/>
 This is how the map designer looks on mobile.
 
 ## How to download and run locally
