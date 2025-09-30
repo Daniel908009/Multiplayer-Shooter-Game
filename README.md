@@ -15,11 +15,11 @@ The Game video link: - [Game video](https://www.youtube.com/watch?v=t6db3MScNCg)
 The Map Designer video link: - [Map Designer video](https://www.youtube.com/watch?v=HJtbwzE4uG4)
 
 # Current state of the game
-Right now the game is in a very basic state. The actual game does work, but there is not much content yet — for example, there is only one type of gun and the only other item is a medkit.
+Right now the game is in a very basic state. The actual game does work, but there is not much content yet. For example, there is only one type of gun and the only other item is a medkit.
 
 Things like dynamic speed (based on what the player is standing on), walls and boundaries and showing parts of the map based on players vision are implemented though.
 
-On the other hand, the map designer is pretty much complete. It has all of the necessary features and more — for example, it works on mobile too. I also think it’s easily upgradable in case I start adding more features (see the **Features** part of this readme).
+On the other hand, the map designer is pretty much complete. It has all of the necessary features and more. For example, it works on mobile too. I also think it is easily upgradable in case I start adding more features (see the **Features** part of this readme).
 
 ## Why did I do it?
 I wanted to gain better experience with multiplayer online games, particularly with anticheat aspects. Basically, I wanted to learn how to run most of the game logic on the server side while making the client just a terminal that cannot influence the game loop in a cheaty way.
@@ -45,10 +45,10 @@ I wanted to gain better experience with multiplayer online games, particularly w
 - You can see the currently selected type on the editors map window
 
 Keep in mind:
-- When you select a zone type (e.g. “Health”), all the other zone types hide themselves.
+- When you select a zone type (e.g. Health), all the other zone types hide themselves.
 - Zones are places where certain items have a chance of spawning.
 
-The map designer also works on mobile, but most of the controls are handled using buttons that only appear on mobile screens. They’re pretty intuitive, so I won’t describe them here.
+The map designer also works on mobile, but most of the controls are handled using buttons that only appear on mobile screens. They are pretty intuitive, so I will not describe them here.
 
 ## Features
 !Important: I tried to write the features in chronological order. However, sometimes I work on multiple things at once, or I may add features later, so this list is just a prediction of how I imagine development going. I also for sure forgot some already achieved goals so if you want to know all the features that are in, you will have to read the commits or the actual code.
@@ -67,7 +67,7 @@ The map designer also works on mobile, but most of the controls are handled usin
 - [X] Walls and boundaries
 - [X] Game UI (inventory, player names, and health tags)
 - [ ] Grenades (partially in the code, but currently cause crashes)
-- [ ] Special effects (explosions, footsteps, etc. — tricky since they must be server-side)
+- [ ] Special effects (explosions, footsteps, etc. tricky since they must be servers side)
 - [ ] More weapons/items and a better system for handling them
 - [ ] Loading into a map by jumping from something (like an airplane) instead of spawning directly (airplane direction should also be random)
 - [ ] More zones (e.g. tree spawning zone)
